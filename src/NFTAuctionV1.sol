@@ -60,6 +60,54 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
 
     event Refund(uint256 indexed auctionId, address indexed withdrawee, uint256 price);
 
+    // 开始时间必须大于0
+    error StartPriceMustGtZero();
+
+    // 持续时间超过指定范围
+    error DurationHoursOutOfRange();
+
+    // 开始时间必须大于当前时间
+    error StartTimeMustGtCurrTime();
+
+    // 开始时间超过最大值
+    error StartTimeOverMaxValue();
+
+    // 无效的nftContract地址
+    error InvalidNftContractAddr();
+
+    // 不是NFT的所有者
+    error NotNftOwner(address caller);
+
+    // NFT没有授权
+    error NftNotApproved();
+
+    // 拍卖不存在
+    error AuctionNotExists(uint256 auctionId);
+
+    // 拍卖已存在
+    error AuctionAlreadyExists(uint256 auctionId);
+
+    // 拍卖已经开始
+    error AuctionAlreadyStarted(uint256 auctionId);
+
+    // 不是拍卖的卖家
+    error NotAuctionSeller(address account);
+    
+    // 卖家不能出价
+    error SellerCannotBid();
+
+    // 拍卖没有开始
+    error AuctionNotStarted(uint256 auctionId);
+
+    // 拍卖已过期
+    error AuctionExpired(uint256 auctionId);
+
+    // 没有超过当前最高价
+    error NotOverCurrHighestPrice(uint256 currHighestPrice);
+
+    // 退款之后再出价
+    error refundAfterBid();
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -134,32 +182,43 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         uint256 durationHours
     ) public returns (uint256) {
         // 检查：开始价格必须大于0
-        require(startPrice > 0, "Start price must be greater than 0!");
+        //require(startPrice > 0, "Start price must be greater than 0!");
+        if(startPrice == 0) revert StartPriceMustGtZero();
+
         // 检查：持续时间必须在24-168小时之间
-        require(durationHours >= 24 && durationHours <= 168, "DurationHours must be between 24-168 hours!");
+        //require(durationHours >= 24 && durationHours <= 168, "DurationHours must be between 24-168 hours!");
+        if(durationHours < 24 || durationHours > 168) revert DurationHoursOutOfRange();
         
         uint256 _currTs = block.timestamp;
         console.log("_currTs of contract:", _currTs);  
         // 检查：开始时间必须大于当前时间
-        require(startTime > _currTs, "Auction start time cannot be past time!");
+        //require(startTime > _currTs, "Auction start time cannot be past time!");
+        if(startTime <= _currTs) revert StartTimeMustGtCurrTime();
+
         // 检查：开始时间必须在当前时间一周内
-        require(startTime <= _currTs + 1 weeks, "Auction start time not allowed!");
+        //require(startTime <= _currTs + 1 weeks, "Auction start time not allowed!");
+        if(startTime > _currTs + 1 weeks) revert StartTimeOverMaxValue();
 
         // 检查：待创建拍卖的NF所在的合约地址不能为0
-        require(nftContract != address(0), "Invalid NFT contract address!");
+        //require(nftContract != address(0), "Invalid NFT contract address!");
+        if(nftContract == address(0)) revert InvalidNftContractAddr();
 
         // 检查：该合约下的NFT没有已创建拍卖
         AuctionStorage storage $ = _getAuctionStorage();
-        require($.ntfToken2AuctionId[nftContract][tokenId] == 0, "Auction has created!");        
+        //require($.ntfToken2AuctionId[nftContract][tokenId] == 0, "Auction has created!");
+        uint256 _auctionId = $.ntfToken2AuctionId[nftContract][tokenId];
+        if(_auctionId > 0) revert AuctionAlreadyExists(_auctionId);       
 
         // 检查：调用者必须是tokenId的所有者
         IERC721 nft = IERC721(nftContract);
-        require(msg.sender == nft.ownerOf(tokenId), "You aren't the owner of tokenId!");
+        //require(msg.sender == nft.ownerOf(tokenId), "You aren't the owner of tokenId!");
+        if(msg.sender != nft.ownerOf(tokenId)) revert NotNftOwner(msg.sender);
 
         // 检查：待拍卖的NFT必须已授权给此合约
-        require(address(this) == nft.getApproved(tokenId) || nft.isApprovedForAll(msg.sender, address(this)), "Not approve!");
+        //require(address(this) == nft.getApproved(tokenId) || nft.isApprovedForAll(msg.sender, address(this)), "Not approve!");
+        if(!(address(this) == nft.getApproved(tokenId) || nft.isApprovedForAll(msg.sender, address(this)))) revert NftNotApproved();
 
-        uint256 _auctionId = ++$.auctionId;
+        _auctionId = ++$.auctionId;
         uint256 _endTime = startTime + (durationHours * 1 hours);
         $.auctions[_auctionId] = AuctionInfo({
             auctionId: _auctionId,
@@ -189,12 +248,17 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
     function cancelAuction(uint256 auctionId) public {
         AuctionStorage storage $ = _getAuctionStorage();
         AuctionInfo storage auction = $.auctions[auctionId];
+
         // 检查：拍卖已创建
-        require(auction.isCreated, "Not Auction!");
+        if(!auction.isCreated) revert AuctionNotExists(auctionId);
+        
         // 检查：当前时间必须小于拍卖开始时间
-        require(block.timestamp < auction.startTime, "Auction has started!");
+        //require(block.timestamp < auction.startTime, "Auction has started!");
+        if(block.timestamp >= auction.startTime) revert AuctionAlreadyStarted(auctionId);
+
         // 检查：调用者是卖家
-        require(auction.seller == msg.sender, "You are not seller!");
+        //require(auction.seller == msg.sender, "You are not seller!");
+        if(auction.seller != msg.sender) revert NotAuctionSeller(msg.sender);
         
         // 更新拍卖信息
         auction.isCreated = false;
@@ -213,25 +277,31 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         AuctionStorage storage $ = _getAuctionStorage();
         AuctionInfo storage auction = $.auctions[auctionId];
         // 检查:拍卖已创建
-        require(auction.isCreated, "AuctionId is not exist!");
+        //require(auction.isCreated, "AuctionId is not exist!");
+        if(!auction.isCreated) revert AuctionNotExists(auctionId);
 
         // 检查：出价者不能是卖方
-        require(auction.seller != msg.sender, "Bidder can not be seller!");
+        //require(auction.seller != msg.sender, "Bidder can not be seller!");
+        if(auction.seller == msg.sender) revert SellerCannotBid();
 
         uint256 _currTime = block.timestamp;
         // 检查：当前时间必须大于等于拍卖开始时间
-        require(auction.startTime <= _currTime, "Auction has not started!");
+        //require(auction.startTime <= _currTime, "Auction has not started!");
+        if(auction.startTime > _currTime) revert AuctionNotStarted(auctionId);
+
         // 检查：当前时间必须小于拍卖结束时间
-        require(auction.endTime > _currTime, "Auction is expired!");
+        //require(auction.endTime > _currTime, "Auction is expired!");
+        if(auction.endTime <= _currTime) revert AuctionExpired(auctionId);
 
         // 检查：当前出价必须高于当前最高出价       
-        require(auction.currHighestPrice < msg.value, "Price must be greater than current highest price!");
+        //require(auction.currHighestPrice < msg.value, "Price must be greater than current highest price!");
+        if(auction.currHighestPrice >= msg.value) revert NotOverCurrHighestPrice(auction.currHighestPrice);
 
         // 检查：出价人的出价+待退款<uint256.max
         // msg.value + $.bidPriceReturns[auctionId][msg.sender] <= type(uint256).max这样写会出现a+b超过uint256最大值而报错的风险，所以改为如下写法        
         // 由于合约里可以接收累计的最大金额为uint256的最大值，同时拍卖每次出价都需高于前一次出价，因此任何出价人累计的金额永远都不可能超过uint256的最大值，所以此检查为了节约gas可以省略。也可为了安全性使用。
-        require(msg.value <= type(uint256).max - $.bidPriceReturns[auctionId][msg.sender], "Please withdraw first and then make a bid");
-
+        //require(msg.value <= type(uint256).max - $.bidPriceReturns[auctionId][msg.sender], "Please withdraw first and then make a bid");
+        if(msg.value > type(uint256).max - $.bidPriceReturns[auctionId][msg.sender]) revert refundAfterBid();
 
         // 记录某拍卖某出价者需要退回的金额
         if (auction.highestBidder != address(0)) {
@@ -245,6 +315,12 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         emit BidInfo(auctionId, msg.sender, _currTime, msg.value);
     }
 
+    // 没有退款
+    error NotRefund();
+
+    // 退款交易失败
+    error RefundTransferFailed(address to, uint256 price);
+
     /**
      * 退款
      * @param auctionId 拍卖ID
@@ -252,14 +328,28 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
     function refund(uint256 auctionId) public {
         AuctionStorage storage $ = _getAuctionStorage();       
         uint256 _price = $.bidPriceReturns[auctionId][msg.sender];
-        require(_price > 0, "Not refund!");
+        //require(_price > 0, "Not refund!");
+        if(_price == 0) revert NotRefund(); 
 
         $.bidPriceReturns[auctionId][msg.sender] = 0;
         (bool success,) = payable(msg.sender).call{value: _price}("");
-        require(success, "Refund to bidder failed!");
+        //require(success, "Refund to bidder failed!");
+        if(!success) revert RefundTransferFailed(msg.sender, _price);
 
         emit Refund(auctionId, msg.sender, _price);
     }
+
+    // 拍卖没有到期
+    error AuctionNotExpired(uint256 auctionId);
+
+    // 拍卖已结束
+    error AuctionEnded(uint256 auctionId);
+
+    // 不是获胜bidder也不是卖家
+    error NotHighestBidderOrSeller();
+
+    // 拍卖结束转账失败
+    error EndAuctionTransferFailed(address to, uint256 price);
 
     /**
      * 拍卖到期后，拍卖获胜者或者卖者可以结束拍卖
@@ -268,18 +358,22 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
     function endAuction(uint256 auctionId) public {
         AuctionInfo storage auction = _getAuctionInfo(auctionId);
         // 检查:拍卖已创建
-        require(auction.isCreated, "Auction is not exist!");
+        //require(auction.isCreated, "Auction is not exist!");
+        if(!auction.isCreated) revert AuctionNotExists(auctionId);
 
         // 检查：拍卖已到期
-        require(auction.endTime <= block.timestamp, "Auction is not expired!");
+        //require(auction.endTime <= block.timestamp, "Auction is not expired!");
+        if(auction.endTime > block.timestamp) revert AuctionNotExpired(auctionId);
 
         // 检查：拍卖没有结束
-        require(auction.isEnded != true, "Auction is ended!");
+        //require(auction.isEnded != true, "Auction is ended!");
+        if(auction.isEnded == true) revert AuctionEnded(auctionId);
 
         // 拍卖已结束!检查 调用者是否是当前最高出价者 或者 调用者是否是卖家  
         address _sellerAddr = auction.seller;
         address _bidderAddr = auction.highestBidder;
-        require(_bidderAddr == msg.sender || _sellerAddr == msg.sender, "You are not the highest Bidder or seller!");
+        //require(_bidderAddr == msg.sender || _sellerAddr == msg.sender, "You are not the highest Bidder or seller!");
+        if(_bidderAddr != msg.sender && _sellerAddr != msg.sender) revert NotHighestBidderOrSeller();
 
         auction.isEnded = true;
         uint256 currTs = block.timestamp;
@@ -293,7 +387,8 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
             /// 2. 此合约把钱转给卖者
             uint256 _price = auction.currHighestPrice;
             (bool success,) = payable(_sellerAddr).call{value: _price}("");
-            require(success, "Transfer to seller failed!");
+            //require(success, "Transfer to seller failed!");
+            if(!success) revert EndAuctionTransferFailed(_sellerAddr, _price);
 
             emit AuctionEnd(auctionId, msg.sender, _bidderAddr, _price, currTs);
         }

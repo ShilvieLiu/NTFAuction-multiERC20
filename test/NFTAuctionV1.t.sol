@@ -238,13 +238,13 @@ contract NFTAuctionV1Test is Test {
     // createAuction测试场景：待创建拍卖的开始价格不大于0 revert
     // src/NFTAuctionV1.sol:119，startPrice > 0 → startPrice != 0，startPrice 为 uint256，值域无负数，属于等价突变，不存在安全风险，接受存活。
     function test_createAuction_startPriceZero() public {
-        vm.expectRevert("Start price must be greater than 0!");
+        vm.expectRevert(abi.encodeWithSignature("StartPriceMustGtZero()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 0, currTs + 1 minutes, 24);
     }
 
     // createAuction测试场景：待创建拍卖的持续时间小于24 revert
     function test_createAuction_durationHoursLe24() public {
-        vm.expectRevert("DurationHours must be between 24-168 hours!");
+        vm.expectRevert(abi.encodeWithSignature("DurationHoursOutOfRange()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 10);
     }
 
@@ -272,19 +272,19 @@ contract NFTAuctionV1Test is Test {
     // createAuction测试场景：待创建拍卖的持续时间大于168 revert
     function test_createAuction_durationHoursGe168() public {
         uint256 invalidDurationHours = 24440054405305269366569402256811496959409073762505157381672968839269610695612;
-        vm.expectRevert("DurationHours must be between 24-168 hours!");
+        vm.expectRevert(abi.encodeWithSignature("DurationHoursOutOfRange()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, invalidDurationHours);
     }
     
     // createAuction测试场景：待创建拍卖的开始时间等于当前时间 revert
     function test_createAuction_startTimeEqCurr() public {
-        vm.expectRevert("Auction start time cannot be past time!");
+        vm.expectRevert(abi.encodeWithSignature("StartTimeMustGtCurrTime()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, block.timestamp, 24);
     }
 
      // createAuction测试场景：待创建拍卖的开始时间小于当前时间 revert
     function test_createAuction_startTimeLeCurr() public {        
-        vm.expectRevert("Auction start time cannot be past time!");
+        vm.expectRevert(abi.encodeWithSignature("StartTimeMustGtCurrTime()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, 0, 24);
     }
 
@@ -305,20 +305,20 @@ contract NFTAuctionV1Test is Test {
     function test_createAuction_startTimeNotAllowed1() public {
         skip(1 hours);
         uint256 invalidStartTime = block.timestamp * 1 weeks;
-        vm.expectRevert("Auction start time not allowed!");
+        vm.expectRevert(abi.encodeWithSignature("StartTimeOverMaxValue()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, invalidStartTime, 24);
     }
 
     // createAuction测试场景：待创建拍卖的开始时间超过允许的最大时间 revert
     function test_createAuction_startTimeNotAllowed2() public {
         uint256 invalidStartTime = 115792089237316195423570985008687907853269984665640564039457584007913129639905;
-        vm.expectRevert("Auction start time not allowed!");
+        vm.expectRevert(abi.encodeWithSignature("StartTimeOverMaxValue()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, invalidStartTime, 24);
     }
 
     // createAuction测试场景：待创建拍卖的NFT所在的合约地址为address(0) revert
     function test_createAuction_nftAddrZero() public {
-        vm.expectRevert("Invalid NFT contract address!");
+        vm.expectRevert(abi.encodeWithSignature("InvalidNftContractAddr()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(address(0), 1, 1, currTs + 1 minutes, 24);
     }
 
@@ -333,10 +333,10 @@ contract NFTAuctionV1Test is Test {
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
 
         // 第一次对指定NFT创建拍卖        
-        NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 24);
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 24);
 
         // 再次对指定NFT创建拍卖
-        vm.expectRevert("Auction has created!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionAlreadyExists(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 24);
 
         vm.stopPrank();
@@ -359,21 +359,21 @@ contract NFTAuctionV1Test is Test {
     function test_createAuction_nftNotOwner1() public {
         address seller2 = makeAddr("seller2");
         vm.prank(seller2);
-        vm.expectRevert("You aren't the owner of tokenId!");
+        vm.expectRevert(abi.encodeWithSignature("NotNftOwner(address)", seller2));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 24);
     }
 
     // createAuction测试场景：创建拍卖者不是该NFT的持有者 revert
     // kill mutate: msg.sender == nft.ownerOf(tokenId) -> msg.sender <= nft.ownerOf(tokenId)
     function test_createAuction_nftNotOwner2() public {
-        vm.expectRevert("You aren't the owner of tokenId!");
+        vm.expectRevert(abi.encodeWithSignature("NotNftOwner(address)", address(this)));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 24);
     }
 
     // createAuction测试场景：待创建拍卖的NFT没有授权给任何合约
     function test_createAuction_nftNotApprove() public {
         vm.prank(seller1);
-        vm.expectRevert("Not approve!");
+        vm.expectRevert(abi.encodeWithSignature("NftNotApproved()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 24);
     }
 
@@ -385,7 +385,7 @@ contract NFTAuctionV1Test is Test {
 
         vm.startPrank(seller1);
         appleNft.approve(testAddr, APPLENFT_TOKENID_1);
-        vm.expectRevert("Not approve!");
+        vm.expectRevert(abi.encodeWithSignature("NftNotApproved()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 24);
         vm.stopPrank();
     }
@@ -437,23 +437,23 @@ contract NFTAuctionV1Test is Test {
         } catch(bytes memory revertData) {
             bool isExpectedRevert = (
                 // 开始价格报错
-                keccak256(revertData) == keccak256(abi.encodeWithSignature("Error(string)", "Start price must be greater than 0!")) 
+                keccak256(revertData) == keccak256(abi.encodeWithSignature("StartPriceMustGtZero()")) 
                 // 持续时间报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("Error(string)", "DurationHours must be between 24-168 hours!"))
+                || keccak256(revertData) == keccak256(abi.encodeWithSignature("DurationHoursOutOfRange()"))
                 // 开始时间小于当前时间报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("Error(string)", "Auction start time cannot be past time!"))
+                || keccak256(revertData) == keccak256(abi.encodeWithSignature("StartTimeMustGtCurrTime()"))
                 // 开始时间超过允许值报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("Error(string)", "Auction start time not allowed!"))
+                || keccak256(revertData) == keccak256(abi.encodeWithSignature("StartTimeOverMaxValue()"))
                 // nftContract零地址报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("Error(string)", "Invalid NFT contract address!"))
+                || keccak256(revertData) == keccak256(abi.encodeWithSignature("InvalidNftContractAddr()"))
                 // 相同NFT重复创建拍卖报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("Error(string)", "Auction has created!"))
+                //|| keccak256(revertData) == keccak256(abi.encodeWithSignature("AuctionAlreadyExists(uint256)", auctionId))
                 // 不存在tokenId报错
                 || keccak256(revertData) == keccak256(abi.encodeWithSignature("ERC721NonexistentToken(uint256)", tokenId))
                 // tokenId所有者报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("Error(string)", "You aren't the owner of tokenId!"))
+                || keccak256(revertData) == keccak256(abi.encodeWithSignature("NotNftOwner(address)", seller1))
                 // nft未授权给此拍卖合约报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("Error(string)", "Not approve!"))                
+                || keccak256(revertData) == keccak256(abi.encodeWithSignature("NftNotApproved()"))                
             );
             assertTrue(isExpectedRevert, "Debug!");
         }
@@ -497,7 +497,7 @@ contract NFTAuctionV1Test is Test {
     // cancelAuction测试场景：拍卖没有创建 revert
     function test_cancelAuction_nonAuction() public {
         uint256 auctionId = 2;
-        vm.expectRevert("Not Auction!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionNotExists(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId);
     }
 
@@ -511,7 +511,7 @@ contract NFTAuctionV1Test is Test {
         
         // 快进2个小时
         skip(2 hours);
-        vm.expectRevert("Auction has started!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionAlreadyStarted(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId);
         
         vm.stopPrank();       
@@ -528,21 +528,21 @@ contract NFTAuctionV1Test is Test {
         
         // 快进1个小时
         skip(1 hours);
-        vm.expectRevert("Auction has started!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionAlreadyStarted(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId);
         
         vm.stopPrank();
     }
 
     // cancelAuction测试场景：调用者不是卖家 revert
-    function test_cancelAuction_notSeller() public {
+    function test_cancelAuction_notSeller1() public {
         vm.startPrank(seller1);
         // 创建拍卖
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
         uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
         vm.stopPrank();
         
-        vm.expectRevert("You are not seller!");
+        vm.expectRevert(abi.encodeWithSignature("NotAuctionSeller(address)", address(this)));
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId);
     }
 
@@ -557,7 +557,7 @@ contract NFTAuctionV1Test is Test {
         
         address seller2 = makeAddr("seller2");
         vm.prank(seller2);
-        vm.expectRevert("You are not seller!");
+        vm.expectRevert(abi.encodeWithSignature("NotAuctionSeller(address)", seller2));
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId);
     }
 
@@ -629,7 +629,7 @@ contract NFTAuctionV1Test is Test {
     // bidAuction测试场景：没有此拍卖 revert
     function test_bidAuction_nonAuction() public {
         vm.prank(bidder1);
-        vm.expectRevert("AuctionId is not exist!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionNotExists(uint256)", 1));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 1.5 ether}(1);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
         assertEq(bidder1.balance, bidder1InitBalance);
@@ -644,7 +644,7 @@ contract NFTAuctionV1Test is Test {
         uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);        
         // 测试
         deal(seller1, 10 ether);
-        vm.expectRevert("Bidder can not be seller!");
+        vm.expectRevert(abi.encodeWithSignature("SellerCannotBid()"));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 1.5 ether}(auctionId);
         assertEq(seller1.balance, seller1InitBalance + 10 ether);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -661,7 +661,7 @@ contract NFTAuctionV1Test is Test {
         vm.stopPrank();
 
         vm.prank(bidder1);
-        vm.expectRevert("Auction has not started!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionNotStarted(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 1.5 ether}(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -697,7 +697,7 @@ contract NFTAuctionV1Test is Test {
         skip(26 hours);
 
         vm.prank(bidder1);
-        vm.expectRevert("Auction is expired!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionExpired(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 1.5 ether}(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -715,7 +715,7 @@ contract NFTAuctionV1Test is Test {
         skip(25 hours);
 
         vm.prank(bidder1);
-        vm.expectRevert("Auction is expired!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionExpired(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 1.5 ether}(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -750,8 +750,10 @@ contract NFTAuctionV1Test is Test {
 
         skip(2 hours);
 
+        uint256 currHighestPrice = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId).currHighestPrice;
+
         vm.prank(bidder1);
-        vm.expectRevert("Price must be greater than current highest price!");
+        vm.expectRevert(abi.encodeWithSignature("NotOverCurrHighestPrice(uint256)", currHighestPrice));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 0.5 ether}(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -769,7 +771,7 @@ contract NFTAuctionV1Test is Test {
         skip(2 hours);
 
         vm.prank(bidder1);
-        vm.expectRevert("Price must be greater than current highest price!");
+        vm.expectRevert(abi.encodeWithSignature("NotOverCurrHighestPrice(uint256)", 1 ether));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 1 ether}(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -822,7 +824,7 @@ contract NFTAuctionV1Test is Test {
         skip(2 hours);
         
         vm.prank(bidder1);
-        vm.expectRevert("Please withdraw first and then make a bid");
+        vm.expectRevert(abi.encodeWithSignature("refundAfterBid()"));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 21 ether}(auctionId);
         // 检查
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), testValue);
@@ -856,8 +858,6 @@ contract NFTAuctionV1Test is Test {
     }
 
     // src/NFTAuctionV1.sol:216，(type(uint256).max - $.bidPriceReturns[auctionId][msg.sender]) -> (type(uint256).max ^ $.bidPriceReturns[auctionId][msg.sender])，属于等价突变，不存在安全风险，接受存活。
-
-    
 
     // #endregion 拍卖出价 测试结束==============================================
 
@@ -902,7 +902,7 @@ contract NFTAuctionV1Test is Test {
 
     // refund测试场景1： auctionId、msg.sender都不存在 退款 revert
     function test_refund_notRefund1() public {        
-        vm.expectRevert("Not refund!");
+        vm.expectRevert(abi.encodeWithSignature("NotRefund()"));
         NFTAuctionV1(auctionSysProxyAddr).refund(1);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
     }
@@ -924,7 +924,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);
         assertEq(bidder1.balance, bidder1InitBalance - _bidder1Value);       
         // bidder1退款
-        vm.expectRevert("Not refund!");
+        vm.expectRevert(abi.encodeWithSignature("NotRefund()"));
         NFTAuctionV1(auctionSysProxyAddr).refund(auctionId);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);
         assertEq(bidder1.balance, bidder1InitBalance - _bidder1Value);
@@ -956,7 +956,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value + _bidder2Value);
 
         // 默认账号退款
-        vm.expectRevert("Not refund!");
+        vm.expectRevert(abi.encodeWithSignature("NotRefund()"));
         NFTAuctionV1(auctionSysProxyAddr).refund(auctionId);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value + _bidder2Value);
     }
@@ -968,7 +968,7 @@ contract NFTAuctionV1Test is Test {
         vm.store(auctionSysProxyAddr, finalSlot, bytes32(testValue));
 
         vm.prank(bidder1);
-        vm.expectRevert("Refund to bidder failed!");
+        vm.expectRevert(abi.encodeWithSignature("RefundTransferFailed(address,uint256)", bidder1, testValue));
         NFTAuctionV1(auctionSysProxyAddr).refund(1);
     }
 
@@ -1095,7 +1095,7 @@ contract NFTAuctionV1Test is Test {
     // endAuction测试场景：拍卖没有创建
     function test_endAuction_notCreated() public {
         vm.prank(bidder1);
-        vm.expectRevert("Auction is not exist!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionNotExists(uint256)", 1));
         NFTAuctionV1(auctionSysProxyAddr).endAuction(1);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -1112,7 +1112,7 @@ contract NFTAuctionV1Test is Test {
         vm.stopPrank();
 
         // 结束拍卖
-        vm.expectRevert("Auction is not expired!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionNotExpired(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -1146,7 +1146,7 @@ contract NFTAuctionV1Test is Test {
         vm.stopPrank();
 
         // 结束拍卖
-        vm.expectRevert("Auction is ended!");
+        vm.expectRevert(abi.encodeWithSignature("AuctionEnded(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -1179,7 +1179,7 @@ contract NFTAuctionV1Test is Test {
         // 构造一个大于auctionSysProxyAddr的地址
         address testAddr = address(uint160(bidder1) + uint160(1));
         vm.prank(testAddr);
-        vm.expectRevert("You are not the highest Bidder or seller!");
+        vm.expectRevert(abi.encodeWithSignature("NotHighestBidderOrSeller()"));
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);
@@ -1210,7 +1210,7 @@ contract NFTAuctionV1Test is Test {
         skip(24 hours);
 
         // 结束拍卖        
-        vm.expectRevert("You are not the highest Bidder or seller!");
+        vm.expectRevert(abi.encodeWithSignature("NotHighestBidderOrSeller()"));
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);
