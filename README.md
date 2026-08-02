@@ -24,3 +24,14 @@
     └── handlers
         └── NFTAuctionV1Handler.sol # V1版本invariant handler测试文件
 ```
+
+## 项目接口
+- createAuction(address nftContract,uint256 tokenId,uint256 startPrice,uint256 startTime,uint256 urationHours) 创建拍卖
+- cancelAuction(uint256 auctionId) 取消拍卖
+- refund(uint256 auctionId) 退款
+- endAuction(uint256 auctionId) 结束拍卖
+- bidAuction(uint256 auctionId) 出价
+- getAuctionInfo(uint256 auctionId) 根据auctionId获取某个拍卖详情
+- getBidPriceReturns(uint256 auctionId, address bidder) 获取某拍卖某出价人该退回的总金额
+- getNtfToken2AuctionId(address nftContract, uint256 tokenId) 获取某合约某token是否已创建拍卖
+- getAuctionCount() 获取拍卖数量
