@@ -15,13 +15,12 @@ contract AppleNFT is ERC721("AppleNFT", "APL") {
     }
 }
 
-contract BananaNFT is ERC721Upgradeable {
-
-}
+contract BananaNFT is ERC721Upgradeable {}
 
 contract NFTAuctionV1Test is Test {
     bytes32 public constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-    bytes32 public constant AUCTION_STORAGE_LOCATION = 0x4c48d9668da3b85d45dd9d4fe97ed0e93efd4218c47ce0da3f0ab7fa4d259a00;
+    bytes32 public constant AUCTION_STORAGE_LOCATION =
+        0x4c48d9668da3b85d45dd9d4fe97ed0e93efd4218c47ce0da3f0ab7fa4d259a00;
 
     uint256 public currTs;
 
@@ -57,16 +56,18 @@ contract NFTAuctionV1Test is Test {
 
     NFTAuctionV1Handler public v1Handler;
 
-
     // #region 共用函数
     //// 部署NFTAuctionV1合约
-    function newNftContract(string memory sys, address owner, string memory nftName, string memory nftSymbol) public returns (NFTAuctionV1 nftSys, address nftSysImpAddr, ERC1967Proxy nftSysProxy, address nftSysProxyAddr) {
+    function newNftContract(string memory sys, address owner, string memory nftName, string memory nftSymbol)
+        public
+        returns (NFTAuctionV1 nftSys, address nftSysImpAddr, ERC1967Proxy nftSysProxy, address nftSysProxyAddr)
+    {
         vm.startPrank(owner);
         console.log(sys, "owner:", owner);
         nftSys = new NFTAuctionV1();
         nftSysImpAddr = address(nftSys);
         console.log(sys, "implementation address:", nftSysImpAddr);
-        bytes memory initData = abi.encodeCall(NFTAuctionV1.initialize,(owner, nftName, nftSymbol));
+        bytes memory initData = abi.encodeCall(NFTAuctionV1.initialize, (owner, nftName, nftSymbol));
         nftSysProxy = new ERC1967Proxy(nftSysImpAddr, initData);
         nftSysProxyAddr = address(nftSysProxy);
         console.log(sys, "proxy address:", nftSysProxyAddr);
@@ -81,7 +82,7 @@ contract NFTAuctionV1Test is Test {
     // 获取AuctionStorage.ntfToken2AuctionId
     function getStorageNtfToken2AuctionId(address nftContract, uint256 tokenId) public view returns (uint256) {
         // mapping 基础slot = 根槽 + 相对偏移1
-        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION)+1);
+        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 1);
         // 第一层key：nftContract合约地址
         bytes32 layer1 = keccak256(abi.encode(nftContract, mapBase));
         // 第二层key：tokenId
@@ -91,25 +92,26 @@ contract NFTAuctionV1Test is Test {
     }
 
     // 获取bidPriceReturns的slot
-    function getBidPriceReturnsSlot(uint256 auctionId, address bidder) public pure returns (bytes32){
+    function getBidPriceReturnsSlot(uint256 auctionId, address bidder) public pure returns (bytes32) {
         // mapping 基础slot = 根槽 + 相对偏移3
-        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION)+3);
+        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 3);
         // 第一层key：auctionId
         bytes32 layer1 = keccak256(abi.encode(auctionId, mapBase));
         // 第二层key：bidder
-        bytes32 finalSlot = keccak256(abi.encode(bidder, layer1));        
+        bytes32 finalSlot = keccak256(abi.encode(bidder, layer1));
         return finalSlot;
     }
 
     // #endregion 共用函数
-    
+
     function setUp() public {
         currTs = block.timestamp;
-        console.log("currTs of setUp:", currTs);     
-        
+        console.log("currTs of setUp:", currTs);
+
         // 部署 拍卖合约
-        (auctionSys, auctionSysAddr, auctionSysProxy, auctionSysProxyAddr) = newNftContract("auction", auctionSysOwner, "AuctionSys", "AS");
-        
+        (auctionSys, auctionSysAddr, auctionSysProxy, auctionSysProxyAddr) =
+            newNftContract("auction", auctionSysOwner, "AuctionSys", "AS");
+
         // 部署 AppleNFT 用来测试
         appleNft = new AppleNFT();
         appleNftAddr = address(appleNft);
@@ -130,19 +132,19 @@ contract NFTAuctionV1Test is Test {
 
         // 不变量测试准备
         v1Handler = new NFTAuctionV1Handler(auctionSysProxyAddr, NFTAuctionV1(auctionSysProxyAddr), appleNft);
-        targetContract(address(v1Handler));        
+        targetContract(address(v1Handler));
 
         console.log("By default account is:", address(this));
         console.log("===setUp End=========");
-    }    
+    }
 
     // #region UUPS Test Start===========================================
 
     // 读取【裸逻辑合约自己的存储】，从未初始化，owner=0
-    function test_impl_owner() public view {        
+    function test_impl_owner() public view {
         address implOwner = auctionSys.owner();
         console.log("Get owner of auction system:", implOwner);
-        vm.assertNotEq(auctionSysOwner, implOwner, "auctionSysOwner == implOwner"); 
+        vm.assertNotEq(auctionSysOwner, implOwner, "auctionSysOwner == implOwner");
     }
 
     // 读取逻辑合约IMPLEMENTATION_SLOT值，0x0
@@ -165,28 +167,28 @@ contract NFTAuctionV1Test is Test {
         console.log("Value of implementation slot in Auction System Proxy:", proxyImplSlotAddr);
         vm.assertEq(auctionSysAddr, proxyImplSlotAddr, "auctionSysAddr != proxyImplSlotAddr");
     }
-    
+
     // V1升级V2地址address(0) revert
-    function test_upgradeTo_zeroAddr_revert() public {        
+    function test_upgradeTo_zeroAddr_revert() public {
         vm.prank(auctionSysOwner); // 只对当前下一行代码使用auctionSysOwner账号运行，需要在某个区间一致运行请使用vm.startPrank()+vm.stopPrank()
         vm.expectRevert();
         NFTAuctionV1(auctionSysProxyAddr).upgradeToAndCall(address(0), "");
-        console.log("Success => Upgrade to address(0) failed");        
+        console.log("Success => Upgrade to address(0) failed");
     }
 
     // 非管理员执行升级操作 revert OwnableUnauthorizedAccount(address)
     function test_nonAdmin_revert() public {
         vm.prank(random);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", random));
-        NFTAuctionV1(auctionSysProxyAddr).upgradeToAndCall(address(0),"");
+        NFTAuctionV1(auctionSysProxyAddr).upgradeToAndCall(address(0), "");
         console.log("Success => Non admin failed to perform upgrade operation");
     }
 
     // 升级至无UUPS的普通合约 revert ERC1967InvalidImplementation(address)
-    function test_nonUUPSContract_revert() public {        
+    function test_nonUUPSContract_revert() public {
         vm.prank(auctionSysOwner);
         vm.expectRevert(abi.encodeWithSignature("ERC1967InvalidImplementation(address)", appleNftAddr));
-        NFTAuctionV1(auctionSysProxyAddr).upgradeToAndCall(appleNftAddr,"");
+        NFTAuctionV1(auctionSysProxyAddr).upgradeToAndCall(appleNftAddr, "");
         console.log("Success => Upgrade to non UUPS contract failed");
     }
 
@@ -194,7 +196,7 @@ contract NFTAuctionV1Test is Test {
 
     // #region 创建拍卖 测试开始============================================================
     // createAuction 测试成功场景
-    function test_createAuction_success() public{
+    function test_createAuction_success() public {
         vm.prank(seller1);
         appleNft.setApprovalForAll(auctionSysProxyAddr, true);
 
@@ -205,22 +207,28 @@ contract NFTAuctionV1Test is Test {
 
         vm.prank(seller1);
         // check emit AuctionCreated
-        vm.expectEmit(true,true,true,true,auctionSysProxyAddr,1);
-        emit NFTAuctionV1.AuctionCreated(AUCTION_ID_1, seller1, appleNftAddr, APPLENFT_TOKENID_1, startPrice, startTime, endTime);        
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, startPrice, startTime, durationHours);
-        
+        vm.expectEmit(true, true, true, true, auctionSysProxyAddr, 1);
+        emit NFTAuctionV1.AuctionCreated(
+            AUCTION_ID_1, seller1, appleNftAddr, APPLENFT_TOKENID_1, startPrice, startTime, endTime
+        );
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, startPrice, startTime, durationHours);
+
         // check 函数返回的值
         assertEq(auctionId, AUCTION_ID_1);
 
         // check storage auctionId
         assertEq(getStorageAuctionId(), AUCTION_ID_1);
-        
+
         // check storage ntfToken2AuctionId
-        console.log("AuctionStorage.ntfToken2AuctionId[appleNftAddr][APPLENFT_TOKENID_1] =", getStorageNtfToken2AuctionId(appleNftAddr, APPLENFT_TOKENID_1));
-        assertEq(getStorageNtfToken2AuctionId(appleNftAddr, APPLENFT_TOKENID_1), AUCTION_ID_1);      
+        console.log(
+            "AuctionStorage.ntfToken2AuctionId[appleNftAddr][APPLENFT_TOKENID_1] =",
+            getStorageNtfToken2AuctionId(appleNftAddr, APPLENFT_TOKENID_1)
+        );
+        assertEq(getStorageNtfToken2AuctionId(appleNftAddr, APPLENFT_TOKENID_1), AUCTION_ID_1);
 
         // check Storage AuctionInfo
-        NFTAuctionV1.AuctionInfo memory info =NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
+        NFTAuctionV1.AuctionInfo memory info = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
         assertEq(info.auctionId, AUCTION_ID_1);
         assertEq(info.tokenId, APPLENFT_TOKENID_1);
         assertEq(info.startPrice, startPrice);
@@ -250,7 +258,7 @@ contract NFTAuctionV1Test is Test {
 
     // durationHours边界：大于24，例如 25
     function test_createAuction_durationHours_25() public {
-        vm.startPrank(seller1);        
+        vm.startPrank(seller1);
         // seller1授权appleNFT到拍卖合约
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
         // 预期：成功创建，不revert
@@ -261,29 +269,29 @@ contract NFTAuctionV1Test is Test {
     // src/NFTAuctionV1.sol:121,durationHours >= 24 && durationHours <= 168 → durationHours >= 24 == durationHours <= 168 属于等价突变，不存在安全风险，接受存活。
 
     function test_createAuction_durationHours_168() public {
-        vm.startPrank(seller1);        
+        vm.startPrank(seller1);
         // seller1授权appleNFT到拍卖合约
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
         // 预期：成功创建，不revert
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 minutes, 168);
         vm.stopPrank();
     }
-    
+
     // createAuction测试场景：待创建拍卖的持续时间大于168 revert
     function test_createAuction_durationHoursGe168() public {
         uint256 invalidDurationHours = 24440054405305269366569402256811496959409073762505157381672968839269610695612;
         vm.expectRevert(abi.encodeWithSignature("DurationHoursOutOfRange()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, invalidDurationHours);
     }
-    
+
     // createAuction测试场景：待创建拍卖的开始时间等于当前时间 revert
     function test_createAuction_startTimeEqCurr() public {
         vm.expectRevert(abi.encodeWithSignature("StartTimeMustGtCurrTime()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, block.timestamp, 24);
     }
 
-     // createAuction测试场景：待创建拍卖的开始时间小于当前时间 revert
-    function test_createAuction_startTimeLeCurr() public {        
+    // createAuction测试场景：待创建拍卖的开始时间小于当前时间 revert
+    function test_createAuction_startTimeLeCurr() public {
         vm.expectRevert(abi.encodeWithSignature("StartTimeMustGtCurrTime()"));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, 0, 24);
     }
@@ -292,12 +300,13 @@ contract NFTAuctionV1Test is Test {
     // (currTs ∣ 1 weeks) ≤ (currTs + 1 weeks), 同时测试突变 currTs + 1 weeks -> currTs ∣ 1 weeks
     // (currTs ^ 1 weeks) ≤ (currTs + 1 weeks), 同时测试突变 currTs + 1 weeks -> currTs ^ 1 weeks
     function test_createAuction_startTime_eqCurrTsAdd1Weeks() public {
-        vm.startPrank(seller1);        
+        vm.startPrank(seller1);
         // seller1授权appleNFT到拍卖合约
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
         skip(1 hours);
         // 预期：成功创建，不revert
-        NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, block.timestamp + 1 weeks, 24);
+        NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, block.timestamp + 1 weeks, 24);
         vm.stopPrank();
     }
 
@@ -328,11 +337,11 @@ contract NFTAuctionV1Test is Test {
     // createAuction测试场景：创建已经创建拍卖的NFT revert
     function test_createAuction_nftCreated() public {
         vm.startPrank(seller1);
-        
+
         // seller1授权appleNFT到拍卖合约
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
 
-        // 第一次对指定NFT创建拍卖        
+        // 第一次对指定NFT创建拍卖
         uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 24);
 
         // 再次对指定NFT创建拍卖
@@ -350,7 +359,7 @@ contract NFTAuctionV1Test is Test {
 
         vm.expectRevert(abi.encodeWithSignature("ERC721NonexistentToken(uint256)", nonExistTokenId));
         NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, nonExistTokenId, 1, currTs + 1 minutes, 24);
-        
+
         vm.stopPrank();
     }
 
@@ -405,11 +414,11 @@ contract NFTAuctionV1Test is Test {
     // startTime ^ (durationHours * 1 hours) ≤ startTime + (durationHours * 1 hours), 同时测试突变 startTime + (durationHours * 1 hours) -> startTime ^ (durationHours * 1 hours)
     function test_createAuction_endTime() public {
         vm.startPrank(seller1);
-        appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);       
+        appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
         uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, 1, 1, currTs + 1 minutes, 27);
         vm.stopPrank();
         // 验证结束时间
-        NFTAuctionV1.AuctionInfo memory info =NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
+        NFTAuctionV1.AuctionInfo memory info = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
         assertEq(info.endTime, currTs + 1 minutes + 27 hours);
     }
 
@@ -426,60 +435,68 @@ contract NFTAuctionV1Test is Test {
     //     uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(nftContract, tokenId, startPrice, startTime, durationHours);
     //     console.log(auctionId);
     // }
-    
-    // createAuction无状态模糊测试
-    function testFuzz_createAuction(uint256 tokenId, uint256 startPrice, uint256 startTime, uint256 durationHours) public {
-        vm.startPrank(seller1);
-        appleNft.setApprovalForAll(auctionSysProxyAddr, true);        
 
-        try NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, tokenId, startPrice, startTime, durationHours) returns (uint256 auctionId) {
+    // createAuction无状态模糊测试
+    function testFuzz_createAuction(uint256 tokenId, uint256 startPrice, uint256 startTime, uint256 durationHours)
+        public
+    {
+        vm.startPrank(seller1);
+        appleNft.setApprovalForAll(auctionSysProxyAddr, true);
+
+        try NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, tokenId, startPrice, startTime, durationHours) returns (
+            uint256 auctionId
+        ) {
             console.log(auctionId);
-        } catch(bytes memory revertData) {
-            bool isExpectedRevert = (
+        } catch (bytes memory revertData) {
+            bool isExpectedRevert =
+                (
                 // 开始价格报错
-                keccak256(revertData) == keccak256(abi.encodeWithSignature("StartPriceMustGtZero()")) 
-                // 持续时间报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("DurationHoursOutOfRange()"))
-                // 开始时间小于当前时间报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("StartTimeMustGtCurrTime()"))
-                // 开始时间超过允许值报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("StartTimeOverMaxValue()"))
-                // nftContract零地址报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("InvalidNftContractAddr()"))
-                // 相同NFT重复创建拍卖报错
-                //|| keccak256(revertData) == keccak256(abi.encodeWithSignature("AuctionAlreadyExists(uint256)", auctionId))
-                // 不存在tokenId报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("ERC721NonexistentToken(uint256)", tokenId))
-                // tokenId所有者报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("NotNftOwner(address)", seller1))
-                // nft未授权给此拍卖合约报错
-                || keccak256(revertData) == keccak256(abi.encodeWithSignature("NftNotApproved()"))                
+                keccak256(revertData) == keccak256(abi.encodeWithSignature("StartPriceMustGtZero()"))
+                    // 持续时间报错
+                    || keccak256(revertData) == keccak256(abi.encodeWithSignature("DurationHoursOutOfRange()"))
+                    // 开始时间小于当前时间报错
+                    || keccak256(revertData) == keccak256(abi.encodeWithSignature("StartTimeMustGtCurrTime()"))
+                    // 开始时间超过允许值报错
+                    || keccak256(revertData) == keccak256(abi.encodeWithSignature("StartTimeOverMaxValue()"))
+                    // nftContract零地址报错
+                    || keccak256(revertData) == keccak256(abi.encodeWithSignature("InvalidNftContractAddr()"))
+                    // 相同NFT重复创建拍卖报错
+                    //|| keccak256(revertData) == keccak256(abi.encodeWithSignature("AuctionAlreadyExists(uint256)", auctionId))
+                    // 不存在tokenId报错
+                    || keccak256(revertData)
+                        == keccak256(abi.encodeWithSignature("ERC721NonexistentToken(uint256)", tokenId))
+                    // tokenId所有者报错
+                    || keccak256(revertData) == keccak256(abi.encodeWithSignature("NotNftOwner(address)", seller1))
+                    // nft未授权给此拍卖合约报错
+                    || keccak256(revertData) == keccak256(abi.encodeWithSignature("NftNotApproved()"))
             );
             assertTrue(isExpectedRevert, "Debug!");
         }
 
         vm.stopPrank();
-    }  
+    }
 
     // #endregion 创建拍卖 测试结束===================================================
 
-    // #region 取消拍卖 测试开始==================================================    
+    // #region 取消拍卖 测试开始==================================================
     // cancelAuction 测试成功场景
     function test_cancelAuction_success() public {
         vm.startPrank(seller1);
 
         // 创建拍卖
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
 
         NFTAuctionV1.AuctionInfo memory infoBf = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
         assertEq(infoBf.isCreated, true);
-        assertEq(getStorageNtfToken2AuctionId(infoBf.nftContract, infoBf.tokenId), auctionId); 
+        assertEq(getStorageNtfToken2AuctionId(infoBf.nftContract, infoBf.tokenId), auctionId);
 
         // 在当前时间下，时间快进1小时
-        skip(1 minutes); 
+        skip(1 minutes);
         // 验证emit
-        vm.expectEmit(true,true,true,true,auctionSysProxyAddr,1);
+        vm.expectEmit(true, true, true, true, auctionSysProxyAddr, 1);
         emit NFTAuctionV1.AuctionCancel(auctionId, seller1);
         // 取消拍卖
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId);
@@ -491,7 +508,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(infoAf.isCreated, false);
         assertEq(getStorageNtfToken2AuctionId(infoAf.nftContract, infoAf.tokenId), 0);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
-        assertEq(seller1.balance, seller1InitBalance);    
+        assertEq(seller1.balance, seller1InitBalance);
     }
 
     // cancelAuction测试场景：拍卖没有创建 revert
@@ -507,14 +524,15 @@ contract NFTAuctionV1Test is Test {
 
         // 创建拍卖
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
-        
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
+
         // 快进2个小时
         skip(2 hours);
         vm.expectRevert(abi.encodeWithSignature("AuctionAlreadyStarted(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId);
-        
-        vm.stopPrank();       
+
+        vm.stopPrank();
     }
 
     // cancelAuction测试场景：取消拍卖的当前时间等于开始时间 revert
@@ -524,13 +542,14 @@ contract NFTAuctionV1Test is Test {
 
         // 创建拍卖
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
-        
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
+
         // 快进1个小时
         skip(1 hours);
         vm.expectRevert(abi.encodeWithSignature("AuctionAlreadyStarted(uint256)", auctionId));
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId);
-        
+
         vm.stopPrank();
     }
 
@@ -539,9 +558,10 @@ contract NFTAuctionV1Test is Test {
         vm.startPrank(seller1);
         // 创建拍卖
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
         vm.stopPrank();
-        
+
         vm.expectRevert(abi.encodeWithSignature("NotAuctionSeller(address)", address(this)));
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId);
     }
@@ -552,9 +572,10 @@ contract NFTAuctionV1Test is Test {
         vm.startPrank(seller1);
         // 创建拍卖
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
         vm.stopPrank();
-        
+
         address seller2 = makeAddr("seller2");
         vm.prank(seller2);
         vm.expectRevert(abi.encodeWithSignature("NotAuctionSeller(address)", seller2));
@@ -569,7 +590,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);        
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
         vm.stopPrank();
         // 初始值
         NFTAuctionV1.AuctionInfo memory info = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
@@ -584,13 +606,13 @@ contract NFTAuctionV1Test is Test {
 
         // bidder1出价
         uint256 _bidVal1 = 1.5 ether;
-        bid(auctionId, bidder1, _bidVal1);      
+        bid(auctionId, bidder1, _bidVal1);
 
         // 验证
         NFTAuctionV1.AuctionInfo memory info1 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
         assertEq(info1.currHighestPrice, _bidVal1);
         assertEq(info1.highestBidder, bidder1);
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), 0); 
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), 0);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidVal1);
         assertEq(bidder1.balance, bidder1InitBalance - _bidVal1);
@@ -610,15 +632,15 @@ contract NFTAuctionV1Test is Test {
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidVal1 + _bidVal12);
         assertEq(bidder1.balance, bidder1InitBalance - _bidVal1 - _bidVal12);
 
-        // bidder2出价       
+        // bidder2出价
         uint256 _bidVal2 = 2 ether;
         bid(auctionId, bidder2, _bidVal2);
 
         // 验证
-         NFTAuctionV1.AuctionInfo memory info2 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
+        NFTAuctionV1.AuctionInfo memory info2 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
         assertEq(info2.currHighestPrice, _bidVal2);
         assertEq(info2.highestBidder, bidder2);
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), _bidVal1+_bidVal12);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), _bidVal1 + _bidVal12);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidVal1 + _bidVal12 + _bidVal2);
         assertEq(bidder2.balance, bidder2InitBalance - _bidVal2);
@@ -636,19 +658,20 @@ contract NFTAuctionV1Test is Test {
     }
 
     // bidAuction测试场景：出价者是卖方 revert
-    function test_bidAuction_sellerBid() public {        
+    function test_bidAuction_sellerBid() public {
         vm.startPrank(seller1);
 
         // 创建拍卖
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);        
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
         // 测试
         deal(seller1, 10 ether);
         vm.expectRevert(abi.encodeWithSignature("SellerCannotBid()"));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 1.5 ether}(auctionId);
         assertEq(seller1.balance, seller1InitBalance + 10 ether);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
-        
+
         vm.stopPrank();
     }
 
@@ -657,7 +680,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);        
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
         vm.stopPrank();
 
         vm.prank(bidder1);
@@ -673,13 +697,14 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);        
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(1 hours);
 
         uint256 _bidder1Value = 1.5 ether;
-        vm.prank(bidder1);          
+        vm.prank(bidder1);
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: _bidder1Value}(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);
@@ -691,7 +716,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);        
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(26 hours);
@@ -709,7 +735,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);        
+        uint256 auctionId =
+            NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(25 hours);
@@ -723,7 +750,7 @@ contract NFTAuctionV1Test is Test {
     }
 
     // bidAuction测试场景：出价人账户金额不足 revert EVMError:OutOfFunds
-    function test_bidAuction_outOfFunds() public {           
+    function test_bidAuction_outOfFunds() public {
         address account1 = makeAddr("account1");
         vm.prank(account1);
         assertEq(account1.balance, 0);
@@ -737,7 +764,7 @@ contract NFTAuctionV1Test is Test {
             reverted = true;
             assertEq(account1.balance, 0);
         }
-        assertTrue(reverted);        
+        assertTrue(reverted);
     }
 
     // bidAuction测试场景：出价<当前最高价 revert
@@ -745,7 +772,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(2 hours);
@@ -765,7 +793,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(2 hours);
@@ -776,29 +805,30 @@ contract NFTAuctionV1Test is Test {
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
         assertEq(bidder1.balance, bidder1InitBalance);
-    }    
-    
+    }
+
     // bidAuction测试场景：合约接收到msg.value累计值超过uint256最大值
     // 关键点：合约里能接收的最大累计金额为uint256的最大值
     function test_bidAuction_overflowPayment() public {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
-        skip(2 hours);          
+        skip(2 hours);
 
         vm.startPrank(bidder1);
         // 第一次出价
         deal(bidder1, type(uint256).max);
-        NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: (type(uint256).max/2)}(auctionId); 
+        NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: (type(uint256).max / 2)}(auctionId);
         // 第二次出价
         deal(bidder1, type(uint256).max);
         bool reverted;
-        try NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: (type(uint256).max/2  + 20 ether)}(auctionId) {
+        try NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: (type(uint256).max / 2 + 20 ether)}(auctionId) {
             // 成功执行，不符合预期，测试失败
-            assertFalse(true);  
+            assertFalse(true);
         } catch {
             // 任意回滚都进入这里，包含EvmError: OverflowPayment
             reverted = true;
@@ -813,7 +843,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         uint256 testValue = type(uint256).max - 20 ether;
@@ -822,7 +853,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), testValue);
 
         skip(2 hours);
-        
+
         vm.prank(bidder1);
         vm.expectRevert(abi.encodeWithSignature("refundAfterBid()"));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 21 ether}(auctionId);
@@ -830,7 +861,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), testValue);
         NFTAuctionV1.AuctionInfo memory info = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
         assertEq(info.currHighestPrice, 1 ether);
-        assertEq(info.highestBidder, address(0));        
+        assertEq(info.highestBidder, address(0));
     }
 
     // bidAuction测试场景：记录某拍卖某出价者需要退回的金额累计相加超过uint256最大值 success
@@ -838,16 +869,17 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         uint256 testValue = type(uint256).max - 20 ether;
         bytes32 finalSlot = getBidPriceReturnsSlot(auctionId, bidder1);
         vm.store(auctionSysProxyAddr, finalSlot, bytes32(testValue));
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), testValue);        
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), testValue);
 
         skip(2 hours);
-        
+
         vm.prank(bidder1);
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: 20 ether}(auctionId);
         // 检查
@@ -867,7 +899,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(2 hours);
@@ -878,11 +911,11 @@ contract NFTAuctionV1Test is Test {
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: _bidder1Value}(auctionId);
         // 检查
         assertEq(bidder1.balance, bidder1InitBalance - _bidder1Value);
-        assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);   
+        assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);
 
         // bidder2出价
         uint256 _bidder2Value = 20 ether;
-        vm.prank(bidder2);        
+        vm.prank(bidder2);
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: _bidder2Value}(auctionId);
         // 检查
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1), _bidder1Value);
@@ -891,7 +924,7 @@ contract NFTAuctionV1Test is Test {
 
         // bidder1退款
         vm.prank(bidder1);
-        vm.expectEmit(true,true,true,true,auctionSysProxyAddr,1);
+        vm.expectEmit(true, true, true, true, auctionSysProxyAddr, 1);
         emit NFTAuctionV1.Refund(auctionId, bidder1, _bidder1Value);
         NFTAuctionV1(auctionSysProxyAddr).refund(auctionId);
         // 检查
@@ -901,7 +934,7 @@ contract NFTAuctionV1Test is Test {
     }
 
     // refund测试场景1： auctionId、msg.sender都不存在 退款 revert
-    function test_refund_notRefund1() public {        
+    function test_refund_notRefund1() public {
         vm.expectRevert(abi.encodeWithSignature("NotRefund()"));
         NFTAuctionV1(auctionSysProxyAddr).refund(1);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
@@ -912,7 +945,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(2 hours);
@@ -922,7 +956,7 @@ contract NFTAuctionV1Test is Test {
         vm.startPrank(bidder1);
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: _bidder1Value}(auctionId);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);
-        assertEq(bidder1.balance, bidder1InitBalance - _bidder1Value);       
+        assertEq(bidder1.balance, bidder1InitBalance - _bidder1Value);
         // bidder1退款
         vm.expectRevert(abi.encodeWithSignature("NotRefund()"));
         NFTAuctionV1(auctionSysProxyAddr).refund(auctionId);
@@ -936,7 +970,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(2 hours);
@@ -964,7 +999,7 @@ contract NFTAuctionV1Test is Test {
     // refund测试场景：合约ETH不足，call转账失败，revert "Refund to bidder failed!"
     function test_refund_noETH() public {
         uint256 testValue = 10 ether;
-        bytes32 finalSlot = getBidPriceReturnsSlot(1, bidder1);        
+        bytes32 finalSlot = getBidPriceReturnsSlot(1, bidder1);
         vm.store(auctionSysProxyAddr, finalSlot, bytes32(testValue));
 
         vm.prank(bidder1);
@@ -982,18 +1017,19 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);     
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         skip(26 hours);
         // 检查
         NFTAuctionV1.AuctionInfo memory info1 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
         assertEq(info1.isEnded, false);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
-        assertEq(seller1.balance, seller1InitBalance);                
+        assertEq(seller1.balance, seller1InitBalance);
         assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), seller1);
         assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), info1.seller);
 
         // 卖家结束拍卖
-        vm.expectEmit(true,true,true,true,auctionSysProxyAddr,1);
+        vm.expectEmit(true, true, true, true, auctionSysProxyAddr, 1);
         emit NFTAuctionV1.AuctionEnd(auctionId, info1.seller, address(0), 0, block.timestamp);
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         // 检查
@@ -1012,33 +1048,36 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), seller1);
         vm.stopPrank();
-        
+
         skip(2 hours);
 
         // bidder1出价
         vm.startPrank(bidder1);
         uint256 bidder1Value = 2 ether;
-        NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: bidder1Value}(auctionId); 
+        NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: bidder1Value}(auctionId);
         // 检查
         NFTAuctionV1.AuctionInfo memory info1 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
         assertEq(info1.isEnded, false);
-        assertEq(seller1.balance, seller1InitBalance); 
+        assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + bidder1Value);
         assertEq(bidder1.balance, bidder1InitBalance - bidder1Value);
         assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), info1.seller);
         assertEq(info1.currHighestPrice, bidder1Value);
-        assertEq(info1.highestBidder, bidder1); 
+        assertEq(info1.highestBidder, bidder1);
 
         skip(24 hours);
 
         // 买家bidder1结束拍卖
-        vm.expectEmit(true,true,true,true,auctionSysProxyAddr,1);
-        emit NFTAuctionV1.AuctionEnd(auctionId, info1.highestBidder, info1.highestBidder, info1.currHighestPrice, block.timestamp);
+        vm.expectEmit(true, true, true, true, auctionSysProxyAddr, 1);
+        emit NFTAuctionV1.AuctionEnd(
+            auctionId, info1.highestBidder, info1.highestBidder, info1.currHighestPrice, block.timestamp
+        );
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         // 检查
         NFTAuctionV1.AuctionInfo memory info2 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
@@ -1047,7 +1086,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(seller1.balance, info2.currHighestPrice);
         assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), info2.highestBidder);
 
-        vm.stopPrank();    
+        vm.stopPrank();
     }
 
     // endAuction 测试成功场景3:有人竞拍，卖家结束拍卖
@@ -1055,10 +1094,11 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
-        assertEq(seller1.balance, seller1InitBalance); 
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
+        assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
-        assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), seller1);      
+        assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), seller1);
         vm.stopPrank();
 
         skip(2 hours);
@@ -1066,11 +1106,11 @@ contract NFTAuctionV1Test is Test {
         // bidder1出价
         uint256 _bidder1Value = 2 ether;
         vm.startPrank(bidder1);
-        NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: _bidder1Value}(auctionId); 
+        NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: _bidder1Value}(auctionId);
         // 检查
         NFTAuctionV1.AuctionInfo memory info1 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
         assertEq(info1.isEnded, false);
-        assertEq(seller1.balance, seller1InitBalance); 
+        assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);
         assertEq(bidder1.balance, bidder1InitBalance - _bidder1Value);
         assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), seller1);
@@ -1080,8 +1120,10 @@ contract NFTAuctionV1Test is Test {
 
         // 卖家结束拍卖
         vm.startPrank(seller1);
-        vm.expectEmit(true,true,true,true,auctionSysProxyAddr,1);
-        emit NFTAuctionV1.AuctionEnd(auctionId, info1.seller, info1.highestBidder, info1.currHighestPrice, block.timestamp);
+        vm.expectEmit(true, true, true, true, auctionSysProxyAddr, 1);
+        emit NFTAuctionV1.AuctionEnd(
+            auctionId, info1.seller, info1.highestBidder, info1.currHighestPrice, block.timestamp
+        );
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         // 检查
         NFTAuctionV1.AuctionInfo memory info2 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId);
@@ -1089,7 +1131,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance);
         assertEq(seller1.balance, seller1InitBalance + _bidder1Value);
         assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), bidder1);
-        vm.stopPrank();            
+        vm.stopPrank();
     }
 
     // endAuction测试场景：拍卖没有创建
@@ -1108,7 +1150,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         // 结束拍卖
@@ -1124,9 +1167,10 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
-        
-        skip(25 hours);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
+
+        skip(25 hours);
         // 结束拍卖
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
@@ -1137,10 +1181,11 @@ contract NFTAuctionV1Test is Test {
 
     // endAuction测试场景：拍卖已结束 revert
     function test_endAuction_ended() public {
-        // seller1创建拍卖 -> seller1结束拍卖 
+        // seller1创建拍卖 -> seller1结束拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         skip(26 hours);
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         vm.stopPrank();
@@ -1159,7 +1204,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(2 hours);
@@ -1193,7 +1239,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(2 hours);
@@ -1209,7 +1256,7 @@ contract NFTAuctionV1Test is Test {
 
         skip(24 hours);
 
-        // 结束拍卖        
+        // 结束拍卖
         vm.expectRevert(abi.encodeWithSignature("NotHighestBidderOrSeller()"));
         NFTAuctionV1(auctionSysProxyAddr).endAuction(auctionId);
         assertEq(seller1.balance, seller1InitBalance);
@@ -1223,7 +1270,8 @@ contract NFTAuctionV1Test is Test {
         // 创建拍卖
         vm.startPrank(seller1);
         appleNft.approve(auctionSysProxyAddr, APPLENFT_TOKENID_1);
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);        
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr)
+            .createAuction(appleNftAddr, APPLENFT_TOKENID_1, 1 ether, currTs + 1 hours, 24);
         vm.stopPrank();
 
         skip(2 hours);
@@ -1235,7 +1283,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(seller1.balance, seller1InitBalance);
         assertEq(auctionSysProxyAddr.balance, auctionSysProxyInitBalance + _bidder1Value);
         assertEq(bidder1.balance, bidder1InitBalance - _bidder1Value);
-        assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), seller1);        
+        assertEq(appleNft.ownerOf(APPLENFT_TOKENID_1), seller1);
 
         skip(24 hours);
         // 改变此合约里的ETH
@@ -1258,7 +1306,10 @@ contract NFTAuctionV1Test is Test {
     // #region invariant testing ==============================================
     // 恒定不变测试：proxy合约balance永远>=出价之和-退款之和-交易之和
     function invariant_balance() public view {
-        assertGe(auctionSysProxyAddr.balance, (v1Handler.ghost_bidSum() - v1Handler.ghost_refundSum() - v1Handler.ghost_endValueSum()));
+        assertGe(
+            auctionSysProxyAddr.balance,
+            (v1Handler.ghost_bidSum() - v1Handler.ghost_refundSum() - v1Handler.ghost_endValueSum())
+        );
     }
 
     // // invariant_balance复现
@@ -1334,7 +1385,7 @@ contract NFTAuctionV1Test is Test {
 
     // 仅用于打印调试统计
     function invariant_callSummary() public view {
-        v1Handler.callSummary(); 
+        v1Handler.callSummary();
     }
     // #endregion invariant testing ==============================================
 
@@ -1342,12 +1393,11 @@ contract NFTAuctionV1Test is Test {
 
     function bid(uint256 auctionId, address bidder, uint256 bidVal) public {
         vm.startPrank(bidder);
-        vm.expectEmit(true,true,true,true,auctionSysProxyAddr,1);
-        emit NFTAuctionV1.BidInfo(auctionId, bidder, block.timestamp ,bidVal);
+        vm.expectEmit(true, true, true, true, auctionSysProxyAddr, 1);
+        emit NFTAuctionV1.BidInfo(auctionId, bidder, block.timestamp, bidVal);
         NFTAuctionV1(auctionSysProxyAddr).bidAuction{value: bidVal}(auctionId);
         vm.stopPrank();
     }
 
-    // #endregion 测试业务的公共函数================================================    
-    
+    // #endregion 测试业务的公共函数================================================
 }

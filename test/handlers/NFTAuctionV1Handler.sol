@@ -6,10 +6,10 @@ import {console} from "forge-std/console.sol";
 import {NFTAuctionV1} from "../../src/NFTAuctionV1.sol";
 import {AppleNFT} from "../NFTAuctionV1.t.sol";
 
-contract NFTAuctionV1Handler is Test {    
+contract NFTAuctionV1Handler is Test {
     NFTAuctionV1 public v1;
     AppleNFT public nft;
-    address public proxyAddr;    
+    address public proxyAddr;
     address[] public actors;
     address internal currentActor;
     uint256 internal currentTokenId;
@@ -25,7 +25,7 @@ contract NFTAuctionV1Handler is Test {
     mapping(bytes4 => uint256) public successCalls;
 
     modifier useActor(uint256 actorSeed) {
-        currentActor = actors[bound(actorSeed, 0, actors.length -1)];
+        currentActor = actors[bound(actorSeed, 0, actors.length - 1)];
         vm.startPrank(currentActor);
         _;
         vm.stopPrank();
@@ -33,42 +33,41 @@ contract NFTAuctionV1Handler is Test {
 
     modifier useTokenId(uint256 tokenIdSeed) {
         tokenIdCount++;
-        address seller = actors[bound(tokenIdSeed, 0, actors.length -1)];
-        vm.startPrank(seller); 
+        address seller = actors[bound(tokenIdSeed, 0, actors.length - 1)];
+        vm.startPrank(seller);
         nft.mint(seller, tokenIdCount);
         nft.approve(proxyAddr, tokenIdCount);
-        vm.stopPrank();      
+        vm.stopPrank();
         _;
     }
-    
 
     // 初始化：自动生产10个账号
     constructor(address _proxyAddr, NFTAuctionV1 _v1, AppleNFT _nft) {
         proxyAddr = _proxyAddr;
         nft = _nft;
         v1 = _v1;
-        for(uint256 i = 0 ; i < 10 ; i++) {
-            actors.push(makeAddr(string(abi.encodePacked("actor",i))));
+        for (uint256 i = 0; i < 10; i++) {
+            actors.push(makeAddr(string(abi.encodePacked("actor", i))));
             vm.deal(actors[i], type(uint256).max);
         }
     }
 
     // 创建拍卖
-    function create(        
-        uint256 startPrice, 
+    function create(
+        uint256 startPrice,
         uint256 startTime,
         uint256 durationHours,
         uint256 actorSeed,
         uint256 tokenIdSeed
-    ) external useTokenId(tokenIdSeed) useActor(actorSeed){
-        // bound 约束合法参数，减少无效revert        
+    ) external useTokenId(tokenIdSeed) useActor(actorSeed) {
+        // bound 约束合法参数，减少无效revert
         //startPrice = bound(startPrice, 0.001 ether, 50 ether);
         startTime = bound(startTime, block.timestamp + 1 hours, block.timestamp + 1 weeks);
         durationHours = bound(durationHours, 24, 168); // 24h ~ 168h
 
         vm.assume(startPrice > 0);
         vm.assume(nft.ownerOf(tokenIdCount) == currentActor);
-        vm.assume(v1.getNtfToken2AuctionId(address(nft),tokenIdCount) == 0);
+        vm.assume(v1.getNtfToken2AuctionId(address(nft), tokenIdCount) == 0);
 
         successCalls[v1.createAuction.selector]++;
         v1.createAuction(address(nft), tokenIdCount, startPrice, startTime, durationHours);
@@ -84,7 +83,7 @@ contract NFTAuctionV1Handler is Test {
         vm.assume(auction.isCreated);
         vm.assume(auction.seller == currentActor);
 
-        uint256 time = bound(timeSeed, 1, auction.startTime-1);
+        uint256 time = bound(timeSeed, 1, auction.startTime - 1);
         vm.warp(time);
 
         successCalls[v1.cancelAuction.selector]++;
@@ -93,25 +92,28 @@ contract NFTAuctionV1Handler is Test {
     }
 
     // 出价
-    function bid(uint256 auctionIdSeed, uint256 actorSeed, uint256 timeSeed, uint256 priceSeed) external useActor(actorSeed) {
+    function bid(uint256 auctionIdSeed, uint256 actorSeed, uint256 timeSeed, uint256 priceSeed)
+        external
+        useActor(actorSeed)
+    {
         vm.assume(v1.getAuctionCount() > 0);
         uint256 auctionId = bound(auctionIdSeed, 1, v1.getAuctionCount());
 
         NFTAuctionV1.AuctionInfo memory auction = v1.getAuctionInfo(auctionId);
         vm.assume(auction.isCreated);
         vm.assume(auction.seller != currentActor);
-        
-        uint256 bidPrice = bound(priceSeed, auction.currHighestPrice+1, type(uint256).max);
+
+        uint256 bidPrice = bound(priceSeed, auction.currHighestPrice + 1, type(uint256).max);
         console.log("bidPrice:", bidPrice);
 
-        uint256 time = bound(timeSeed, auction.startTime, auction.endTime-1);
+        uint256 time = bound(timeSeed, auction.startTime, auction.endTime - 1);
         vm.warp(time);
 
         successCalls[v1.bidAuction.selector]++;
         v1.bidAuction{value: bidPrice}(auctionId);
         calls[v1.bidAuction.selector]++;
 
-        ghost_bidSum = ghost_bidSum + bidPrice;        
+        ghost_bidSum = ghost_bidSum + bidPrice;
     }
 
     // 退款
@@ -145,10 +147,9 @@ contract NFTAuctionV1Handler is Test {
         v1.endAuction(auctionId);
         calls[v1.endAuction.selector]++;
 
-        if(auction.highestBidder != address(0)){
+        if (auction.highestBidder != address(0)) {
             ghost_endValueSum = ghost_endValueSum + auction.currHighestPrice;
         }
-                
     }
 
     function callSummary() external view {
@@ -162,13 +163,9 @@ contract NFTAuctionV1Handler is Test {
         console.log("bidAuction successful calls:", successCalls[v1.bidAuction.selector]);
 
         console.log("refund calls:", calls[v1.refund.selector]);
-        console.log("refund successful calls:", successCalls[v1.refund.selector]); 
+        console.log("refund successful calls:", successCalls[v1.refund.selector]);
 
-        console.log("endAuction calls:", calls[v1.endAuction.selector]); 
-        console.log("endAuction successful calls:", successCalls[v1.endAuction.selector]); 
+        console.log("endAuction calls:", calls[v1.endAuction.selector]);
+        console.log("endAuction successful calls:", successCalls[v1.endAuction.selector]);
     }
-
-    
-
-
 }
