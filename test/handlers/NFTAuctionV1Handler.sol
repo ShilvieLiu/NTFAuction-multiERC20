@@ -65,12 +65,17 @@ contract NFTAuctionV1Handler is Test {
         startTime = bound(startTime, block.timestamp + 1 hours, block.timestamp + 1 weeks);
         durationHours = bound(durationHours, 24, 168); // 24h ~ 168h
 
+        uint256[] memory allowedTokens = new uint256[](3);
+        allowedTokens[0] = 0;
+        allowedTokens[1] = 1;
+        allowedTokens[2] = 2;
+
         vm.assume(startPrice > 0);
         vm.assume(nft.ownerOf(tokenIdCount) == currentActor);
         vm.assume(v1.getNtfToken2AuctionId(address(nft), tokenIdCount) == 0);
 
         successCalls[v1.createAuction.selector]++;
-        v1.createAuction(address(nft), tokenIdCount, startPrice, startTime, durationHours);
+        v1.createAuction(address(nft), tokenIdCount, startPrice, startTime, durationHours, allowedTokens);
         calls[v1.createAuction.selector]++;
     }
 
@@ -110,7 +115,7 @@ contract NFTAuctionV1Handler is Test {
         vm.warp(time);
 
         successCalls[v1.bidAuction.selector]++;
-        v1.bidAuction{value: bidPrice}(auctionId);
+        v1.bidAuction{value: bidPrice}(auctionId, 0, 0);
         calls[v1.bidAuction.selector]++;
 
         ghost_bidSum = ghost_bidSum + bidPrice;
@@ -121,11 +126,11 @@ contract NFTAuctionV1Handler is Test {
         vm.assume(v1.getAuctionCount() > 0);
         uint256 auctionId = bound(auctionIdSeed, 1, v1.getAuctionCount());
 
-        uint256 value = v1.getBidPriceReturns(auctionId, currentActor);
+        uint256 value = v1.getBidPriceReturns(auctionId, currentActor, 0);
         vm.assume(value > 0);
 
         successCalls[v1.refund.selector]++;
-        v1.refund(auctionId);
+        v1.refund(auctionId, 0);
         calls[v1.refund.selector]++;
 
         ghost_refundSum = ghost_refundSum + value;

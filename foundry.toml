@@ -5,6 +5,8 @@ libs = ["lib"]
 
 solc_version = "0.8.33"
 
+via_ir = true   # 解决 Stack too deep（栈过深）编译报错
+
 [fuzz]
 runs = 512
 corpus_dir = "cache/fuzz-corpus"
