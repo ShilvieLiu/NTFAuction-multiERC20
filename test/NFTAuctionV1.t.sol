@@ -103,8 +103,8 @@ contract NFTAuctionV1Test is Test {
 
     // #region 共用函数
     //// 部署NFTAuctionV1合约
-    function newNftContract(string memory sys, address owner, string memory nftName, string memory nftSymbol, NFTAuctionV1.TokenInitConfig[] memory tokenInitList)
-        public
+    function _newNftContract(string memory sys, address owner, string memory nftName, string memory nftSymbol, NFTAuctionV1.TokenInitConfig[] memory tokenInitList)
+        internal
         returns (NFTAuctionV1 nftSys, address nftSysImpAddr, ERC1967Proxy nftSysProxy, address nftSysProxyAddr)
     {
         vm.startPrank(owner);
@@ -120,12 +120,12 @@ contract NFTAuctionV1Test is Test {
     }
 
     // 获取AuctionStorage.auctionId
-    function getStorageAuctionId() public view returns (uint256) {
+    function _getStorageAuctionId() internal view returns (uint256) {
         return uint256(vm.load(auctionSysProxyAddr, AUCTION_STORAGE_LOCATION));
     }
 
     // 获取AuctionStorage.ntfToken2AuctionId
-    function getStorageNtfToken2AuctionId(address nftContract, uint256 tokenId) public view returns (uint256) {
+    function _getStorageNtfToken2AuctionId(address nftContract, uint256 tokenId) internal view returns (uint256) {
         // mapping 基础slot = 根槽 + 相对偏移1
         bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 1);
         // 第一层key：nftContract合约地址
@@ -137,7 +137,7 @@ contract NFTAuctionV1Test is Test {
     }
 
     // 获取bidPriceReturns的slot
-    function getBidPriceReturnsSlot(uint256 auctionId, address bidder, uint256 token) public pure returns (bytes32) {
+    function _getBidPriceReturnsSlot(uint256 auctionId, address bidder, uint256 token) internal pure returns (bytes32) {
         // mapping 基础slot = 根槽 + 相对偏移3
         bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 3);
         // 第一层key：auctionId
@@ -146,6 +146,14 @@ contract NFTAuctionV1Test is Test {
         bytes32 layer2 = keccak256(abi.encode(bidder, layer1));
         // 第三层key：token
         bytes32 finalSlot = keccak256(abi.encode(token, layer2));
+        return finalSlot;
+    }
+
+    function _getTokenAddrsSlot(uint256 token) internal pure returns (bytes32) {
+        // mapping 基础slot = 根槽 + 相对偏移7
+        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 7);
+        // 第一层key：token
+        bytes32 finalSlot = keccak256(abi.encode(token, mapBase));
         return finalSlot;
     }
 
@@ -226,7 +234,7 @@ contract NFTAuctionV1Test is Test {
 
         // 部署 拍卖合约
         (auctionSys, auctionSysAddr, auctionSysProxy, auctionSysProxyAddr) =
-            newNftContract("auction", auctionSysOwner, "AuctionSys", "AS", tokenInitList);
+            _newNftContract("auction", auctionSysOwner, "AuctionSys", "AS", tokenInitList);
         
         auctionSysProxyInitBalance = auctionSysProxyAddr.balance;       
 
@@ -694,7 +702,7 @@ contract NFTAuctionV1Test is Test {
     }
 
     // updCfgFeedAddr: feedAddr==address(0) revert
-    function test_updCfgFeddAddr_RevertIf_InvalidFeedAddr() public {
+    function test_updCfgFeedAddr_RevertIf_InvalidFeedAddr() public {
         vm.prank(auctionSysOwner);
         vm.expectRevert(abi.encodeWithSelector(NFTAuctionV1.InvalidFeedAddr.selector));
         NFTAuctionV1(auctionSysProxyAddr).updCfgFeedAddr(1, address(0));
@@ -707,7 +715,7 @@ contract NFTAuctionV1Test is Test {
 
         vm.prank(auctionSysOwner);
         vm.expectRevert(abi.encodeWithSelector(NFTAuctionV1.TokenCfgNotExists.selector));
-        NFTAuctionV1(auctionSysProxyAddr).updCfgTokenAddr(token, feedAddr);
+        NFTAuctionV1(auctionSysProxyAddr).updCfgFeedAddr(token, feedAddr);
     }
 
     // updCfgFeedAddr: feedAddr跟原先的一样 revert
@@ -826,16 +834,17 @@ contract NFTAuctionV1Test is Test {
         emit NFTAuctionV1.AuctionCreated(
             AUCTION_ID_1, caller, nftContract, APPLENFT_TOKENID_1, feedRt.usd18Value, params.startTime, endTime, true, allowedTokens, feedRt.decimals, params.startPrice 
         );
-        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(params);
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(params);        
 
         // check 函数返回的值
         assertEq(auctionId, AUCTION_ID_1);
 
         // check storage auctionId
-        assertEq(getStorageAuctionId(), AUCTION_ID_1);
+        assertEq(_getStorageAuctionId(), AUCTION_ID_1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), AUCTION_ID_1);
 
         // check storage ntfToken2AuctionId
-        assertEq(getStorageNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), AUCTION_ID_1);
+        assertEq(_getStorageNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), AUCTION_ID_1);
 
         // check storage auctionCount
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 1);
@@ -858,7 +867,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(info.allowedTokens, allowedTokens);
         assertEq(info.highestBidToken, 0);
         assertEq(info.currHighestTokenAmount, params.startPrice);
-        assertEq(info.currHighestDecimals, feedRt.decimals);
+        assertEq(info.currHighestDecimals, feedRt.decimals);        
 
         vm.stopPrank();
     }
@@ -894,6 +903,7 @@ contract NFTAuctionV1Test is Test {
         uint256 auctionId1 = NFTAuctionV1(auctionSysProxyAddr).createAuction(params1);
         assertEq(auctionId1, 1);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId1);
 
         // 2. 对 APPLENFT_TOKENID_2 创建拍卖 2
         NFTAuctionV1.CreateAuctionParams memory params2 = NFTAuctionV1.CreateAuctionParams({
@@ -906,14 +916,17 @@ contract NFTAuctionV1Test is Test {
         });
         uint256 auctionId2 = NFTAuctionV1(auctionSysProxyAddr).createAuction(params2); 
         assertEq(auctionId2, 2);       
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 2);                
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 2);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_2), auctionId2);                
 
         // 3. 对拍卖 1 取消拍卖
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId1);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId1);
 
         // 4. 对拍卖 1 再次创建拍卖
         uint256 auctionId12 = NFTAuctionV1(auctionSysProxyAddr).createAuction(params1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId12);
 
         // 5. 验证
         assertEq(auctionId1, auctionId12);
@@ -964,10 +977,11 @@ contract NFTAuctionV1Test is Test {
         assertEq(auctionId, AUCTION_ID_1);
 
         // check storage auctionId
-        assertEq(getStorageAuctionId(), AUCTION_ID_1);
+        assertEq(_getStorageAuctionId(), AUCTION_ID_1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId);
 
         // check storage ntfToken2AuctionId
-        assertEq(getStorageNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), AUCTION_ID_1);
+        assertEq(_getStorageNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), AUCTION_ID_1);
 
         // check storage auctionCount
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 1);
@@ -1024,6 +1038,7 @@ contract NFTAuctionV1Test is Test {
         uint256 auctionId1 = NFTAuctionV1(auctionSysProxyAddr).createAuction(params1);
         assertEq(auctionId1, 1);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId1);
 
         // 2. 对 APPLENFT_TOKENID_2 创建拍卖 2
         NFTAuctionV1.CreateAuctionParams memory params2 = NFTAuctionV1.CreateAuctionParams({
@@ -1036,14 +1051,17 @@ contract NFTAuctionV1Test is Test {
         });
         uint256 auctionId2 = NFTAuctionV1(auctionSysProxyAddr).createAuction(params2); 
         assertEq(auctionId2, 2);       
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 2);                
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 2);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_2), auctionId2);                
 
         // 3. 对拍卖 1 取消拍卖
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId1);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId1);
 
         // 4. 对拍卖 1 再次创建拍卖
         uint256 auctionId12 = NFTAuctionV1(auctionSysProxyAddr).createAuction(params1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId12);
 
         // 5. 验证
         assertEq(auctionId1, auctionId12);
@@ -1093,10 +1111,11 @@ contract NFTAuctionV1Test is Test {
         assertEq(auctionId, AUCTION_ID_1);
 
         // check storage auctionId
-        assertEq(getStorageAuctionId(), AUCTION_ID_1);
+        assertEq(_getStorageAuctionId(), AUCTION_ID_1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId);
 
         // check storage ntfToken2AuctionId
-        assertEq(getStorageNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), AUCTION_ID_1);
+        assertEq(_getStorageNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), AUCTION_ID_1);
 
         // check storage auctionCount
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 1);
@@ -1153,6 +1172,7 @@ contract NFTAuctionV1Test is Test {
         uint256 auctionId1 = NFTAuctionV1(auctionSysProxyAddr).createAuction(params1);
         assertEq(auctionId1, 1);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId1);
 
         // 2. 对 APPLENFT_TOKENID_2 创建拍卖 2
         NFTAuctionV1.CreateAuctionParams memory params2 = NFTAuctionV1.CreateAuctionParams({
@@ -1165,20 +1185,37 @@ contract NFTAuctionV1Test is Test {
         });
         uint256 auctionId2 = NFTAuctionV1(auctionSysProxyAddr).createAuction(params2); 
         assertEq(auctionId2, 2);       
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 2);                
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 2);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_2), auctionId2);              
 
         // 3. 对拍卖 1 取消拍卖
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId1);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId1);
 
         // 4. 对拍卖 1 再次创建拍卖
         uint256 auctionId12 = NFTAuctionV1(auctionSysProxyAddr).createAuction(params1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getNtfToken2AuctionId(nftContract, APPLENFT_TOKENID_1), auctionId12);
 
         // 5. 验证
         assertEq(auctionId1, auctionId12);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getAuctionCount(), 2); 
 
         vm.stopPrank(); 
+    }
+
+    // createAuction测试场景：无效的NFT合约地址 revert
+    function test_createAuction_RevertIf_InvalidNftContractAddr() public {
+        address nftContract = address(0);
+        vm.expectRevert(abi.encodeWithSelector(NFTAuctionV1.InvalidNftContractAddr.selector));
+        NFTAuctionV1(auctionSysProxyAddr).createAuction(NFTAuctionV1.CreateAuctionParams({
+            nftContract: nftContract, 
+            tokenId: 1,
+            startPrice: 1, 
+            startTime: currTs + 1 minutes, 
+            durationHours: 24, 
+            allowedTokens: _createAllowedTokens()
+        })); 
     }
 
     // createAuction测试场景：待创建拍卖的开始价格不大于0 revert
@@ -2092,12 +2129,13 @@ contract NFTAuctionV1Test is Test {
         NFTAuctionV1(auctionSysProxyAddr).getUSDByToken(10, 1);
     }
 
-    // // getUSDByToken 测试场景：tokenAddr==address(0) revert
-    // function test_getUSDByToken_RevertIf_InvalidTokenAddr() public {
-        
-    //     vm.expectRevert(NFTAuctionV1.InvalidTokenAddr.selector);
-    //     NFTAuctionV1(auctionSysProxyAddr).getUSDByToken(1, 1);
-    // }
+    // getUSDByToken 测试场景：tokenAddr==address(0) revert
+    function test_getUSDByToken_RevertIf_InvalidTokenAddr() public {
+        bytes32 finalSlot = _getTokenAddrsSlot(1);
+        vm.store(auctionSysProxyAddr, finalSlot, bytes32(uint256(uint160(address(0)))));
+        vm.expectRevert(NFTAuctionV1.InvalidTokenAddr.selector);
+        NFTAuctionV1(auctionSysProxyAddr).getUSDByToken(1, 1);
+    }
 
     // #endregion 各种代币转成对应的USD价格 测试结束===============================================
 
@@ -2635,7 +2673,7 @@ contract NFTAuctionV1Test is Test {
         vm.stopPrank();
 
         uint256 testValue = type(uint256).max - 20 ether;
-        bytes32 finalSlot = getBidPriceReturnsSlot(auctionId, bidder1, 0);
+        bytes32 finalSlot = _getBidPriceReturnsSlot(auctionId, bidder1, 0);
         vm.store(auctionSysProxyAddr, finalSlot, bytes32(testValue));
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1, 0), testValue);
 
@@ -2679,7 +2717,7 @@ contract NFTAuctionV1Test is Test {
         vm.stopPrank();
 
         uint256 testValue = type(uint256).max - 20 ether;
-        bytes32 finalSlot = getBidPriceReturnsSlot(auctionId, bidder1, 0);
+        bytes32 finalSlot = _getBidPriceReturnsSlot(auctionId, bidder1, 0);
         vm.store(auctionSysProxyAddr, finalSlot, bytes32(testValue));
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getBidPriceReturns(auctionId, bidder1, 0), testValue);
 
@@ -2997,7 +3035,7 @@ contract NFTAuctionV1Test is Test {
     // refund测试场景：合约ETH不足，call转账失败，revert "Refund to bidder failed!"
     function test_refund_NoETH() public {
         uint256 testValue = 10 ether;
-        bytes32 finalSlot = getBidPriceReturnsSlot(1, bidder1, 0);
+        bytes32 finalSlot = _getBidPriceReturnsSlot(1, bidder1, 0);
         vm.store(auctionSysProxyAddr, finalSlot, bytes32(testValue));
 
         vm.prank(bidder1);

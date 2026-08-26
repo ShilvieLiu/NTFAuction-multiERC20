@@ -242,9 +242,9 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
 
     // #endregion 5. define erros
 
-    // #region 6. define modifiers    
+    // #region 6. define modifiers  
 
-    modifier validAddr(uint256 checkType, address addr) {
+    function _checkValidAddr(uint256 checkType, address addr) internal pure {
         if(addr == address(0)) {
             if(checkType == 0) {
                 revert InvalidNftContractAddr();
@@ -254,6 +254,10 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
                 revert InvalidFeedAddr();
             }
         }
+    }
+
+    modifier validAddr(uint256 checkType, address addr) {
+        _checkValidAddr(checkType, addr);
         _;
     }
 

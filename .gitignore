@@ -15,3 +15,7 @@ docs/
 
 # showmap
 showmap/
+
+# coverage report
+coverage/
+lcov.info
