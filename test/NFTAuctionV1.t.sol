@@ -340,7 +340,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(token2), address(0));
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(token1), address(0));
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(token2), address(0));
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).tokenCount(), tokenCfgCount);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenCount(), tokenCfgCount);
 
         vm.prank(auctionSysOwner);
         NFTAuctionV1(auctionSysProxyAddr).batchAddTokenCfg(tokenInitList);
@@ -355,7 +355,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(token2), tokenAddr2);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(token1), feedAddr1);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(token2), feedAddr2);
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).tokenCount(), tokenCfgCount + 2);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenCount(), tokenCfgCount + 2);
     }
 
     // batchAddTokenCfg: 不是管理员调用 revert
@@ -476,7 +476,7 @@ contract NFTAuctionV1Test is Test {
         address tokenAddr = 0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4;
         address feedAddr = 0x1a81afB8146aeFfCFc5E50e8479e826E7D55b910;        
 
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).tokenCount(), tokenCfgCount);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenCount(), tokenCfgCount);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenIsExists(token), false);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenAddrIsExists(tokenAddr), false);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getFeedAddrIsExists(feedAddr), false);
@@ -487,7 +487,7 @@ contract NFTAuctionV1Test is Test {
         NFTAuctionV1(auctionSysProxyAddr).addTokenCfg(token, tokenAddr, feedAddr);
 
         // 验证
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).tokenCount(), tokenCfgCount + 1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenCount(), tokenCfgCount + 1);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenIsExists(token), true);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenAddrIsExists(tokenAddr), true);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getFeedAddrIsExists(feedAddr), true);
@@ -756,7 +756,7 @@ contract NFTAuctionV1Test is Test {
         assertNotEq(feedAddr, address(0));
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenAddrIsExists(tokenAddr), true);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getFeedAddrIsExists(feedAddr), true);
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).tokenCount(), tokenCfgCount);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenCount(), tokenCfgCount);
         
         vm.prank(auctionSysOwner);
         NFTAuctionV1(auctionSysProxyAddr).delTokenCfg(token);
@@ -766,7 +766,7 @@ contract NFTAuctionV1Test is Test {
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getFeedAddrIsExists(feedAddr), false);
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(token), address(0));
         assertEq(NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(token), address(0));
-        assertEq(NFTAuctionV1(auctionSysProxyAddr).tokenCount(), tokenCfgCount - 1);
+        assertEq(NFTAuctionV1(auctionSysProxyAddr).getTokenCount(), tokenCfgCount - 1);
     }
 
     // delTokenCfg: 不是管理员调用 revert
