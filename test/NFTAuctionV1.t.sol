@@ -7,7 +7,7 @@ import {NFTAuctionV1} from "../src/NFTAuctionV1.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-//import {NFTAuctionV1Handler} from "./handlers/NFTAuctionV1Handler.sol";
+import {NFTAuctionV1Handler} from "./handlers/NFTAuctionV1Handler.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {MockV3Aggregator} from "@chainlink/contracts/src/v0.8/shared/mocks/MockV3Aggregator.sol";
@@ -36,12 +36,20 @@ contract MockDai is ERC20("DAI", "DAI") {
 
 contract BananaNFT is ERC721Upgradeable {}
 
+// 仅测试用
+contract Harness_NFTAuction is NFTAuctionV1 {
+    // 把internal的校验函数暴露为external，专门做变异&覆盖率测试
+    function exposed_checkValidAddr(uint256 checkType, address addr) external pure {
+        _checkValidAddr(checkType, addr);
+    }
+}
+
 contract NFTAuctionV1Test is Test {
     bytes32 public constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
     bytes32 public constant AUCTION_STORAGE_LOCATION =
         0x4c48d9668da3b85d45dd9d4fe97ed0e93efd4218c47ce0da3f0ab7fa4d259a00;
     address public constant SEPOLIA_NFT_ADDR = 0xD4731999Cf9DBB165752C0321Eb474E65307000F;
-
+    
     uint256 public currTs;
 
     NFTAuctionV1 public auctionSys;
@@ -75,14 +83,15 @@ contract NFTAuctionV1Test is Test {
     uint256 public bidder1InitBalance;
     uint256 public bidder2InitBalance;
 
-    //NFTAuctionV1Handler public v1Handler;
+    NFTAuctionV1Handler public v1Handler;
 
     uint256 public tokenCfgCount;
 
     address public usdcAddr;
     address public daiAddr;
-    address public usdcBidder = 0x0077777d7EBA4688BDeF3E311b846F25870A19B9;
-    address public daiBidder = 0xc94b1BEe63A3e101FE5F71C80F912b4F4b055925;
+    address public usdcBidder = 0x75C0c372da875a4Fc78E8A37f58618a6D18904e8;
+    //address public daiBidder = 0xc94b1BEe63A3e101FE5F71C80F912b4F4b055925;
+    address public daiBidder = 0xc0dEC722b431c02a0787F349587B783A0f2F3281;
 
     uint256 public usdcBidderInitBalance;
     uint256 public daiBidderInitBalance;
@@ -101,64 +110,6 @@ contract NFTAuctionV1Test is Test {
     MockUsdc mockUsdc = new MockUsdc();
     MockDai mockDai = new MockDai();
 
-    // #region 共用函数
-    //// 部署NFTAuctionV1合约
-    function _newNftContract(string memory sys, address owner, string memory nftName, string memory nftSymbol, NFTAuctionV1.TokenInitConfig[] memory tokenInitList)
-        internal
-        returns (NFTAuctionV1 nftSys, address nftSysImpAddr, ERC1967Proxy nftSysProxy, address nftSysProxyAddr)
-    {
-        vm.startPrank(owner);
-        console.log(sys, "owner:", owner);
-        nftSys = new NFTAuctionV1();
-        nftSysImpAddr = address(nftSys);
-        console.log(sys, "implementation address:", nftSysImpAddr);
-        bytes memory initData = abi.encodeCall(NFTAuctionV1.initialize, (owner, nftName, nftSymbol, tokenInitList));
-        nftSysProxy = new ERC1967Proxy(nftSysImpAddr, initData);
-        nftSysProxyAddr = address(nftSysProxy);
-        console.log(sys, "proxy address:", nftSysProxyAddr);
-        vm.stopPrank();
-    }
-
-    // 获取AuctionStorage.auctionId
-    function _getStorageAuctionId() internal view returns (uint256) {
-        return uint256(vm.load(auctionSysProxyAddr, AUCTION_STORAGE_LOCATION));
-    }
-
-    // 获取AuctionStorage.ntfToken2AuctionId
-    function _getStorageNtfToken2AuctionId(address nftContract, uint256 tokenId) internal view returns (uint256) {
-        // mapping 基础slot = 根槽 + 相对偏移1
-        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 1);
-        // 第一层key：nftContract合约地址
-        bytes32 layer1 = keccak256(abi.encode(nftContract, mapBase));
-        // 第二层key：tokenId
-        bytes32 finalSlot = keccak256(abi.encode(tokenId, layer1));
-
-        return uint256(vm.load(auctionSysProxyAddr, finalSlot));
-    }
-
-    // 获取bidPriceReturns的slot
-    function _getBidPriceReturnsSlot(uint256 auctionId, address bidder, uint256 token) internal pure returns (bytes32) {
-        // mapping 基础slot = 根槽 + 相对偏移3
-        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 3);
-        // 第一层key：auctionId
-        bytes32 layer1 = keccak256(abi.encode(auctionId, mapBase));
-        // 第二层key：bidder
-        bytes32 layer2 = keccak256(abi.encode(bidder, layer1));
-        // 第三层key：token
-        bytes32 finalSlot = keccak256(abi.encode(token, layer2));
-        return finalSlot;
-    }
-
-    function _getTokenAddrsSlot(uint256 token) internal pure returns (bytes32) {
-        // mapping 基础slot = 根槽 + 相对偏移7
-        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 7);
-        // 第一层key：token
-        bytes32 finalSlot = keccak256(abi.encode(token, mapBase));
-        return finalSlot;
-    }
-
-    // #endregion 共用函数
-
     function setUp() public {
         currTs = block.timestamp;
         console.log("currTs of setUp:", currTs);        
@@ -173,9 +124,6 @@ contract NFTAuctionV1Test is Test {
 
             currTs = block.timestamp;
             console.log("FORK_MODE currTs of setUp:", currTs);
-
-            // daiBidderInitBalance = IERC20(daiAddr).balanceOf(daiBidder);
-            // usdcBidderInitBalance = IERC20(usdcAddr).balanceOf(usdcBidder);
 
             seller1 = vm.envAddress("SEPOLIA_SELLER1_ADDR");
             seller1InitBalance = seller1.balance;
@@ -239,8 +187,8 @@ contract NFTAuctionV1Test is Test {
         auctionSysProxyInitBalance = auctionSysProxyAddr.balance;       
 
         // 不变量测试准备
-        // v1Handler = new NFTAuctionV1Handler(auctionSysProxyAddr, NFTAuctionV1(auctionSysProxyAddr), appleNft);
-        // targetContract(address(v1Handler));
+        v1Handler = new NFTAuctionV1Handler(auctionSysProxyAddr, NFTAuctionV1(auctionSysProxyAddr), appleNft);
+        targetContract(address(v1Handler));
 
         console.log("By default account is:", address(this));
         console.log("===setUp End=========");
@@ -322,6 +270,16 @@ contract NFTAuctionV1Test is Test {
 
     // #endregion UUPS Test End=======================================================  
 
+    // #region _checkValidAddr Test Start=======================================================  
+    // _checkValidAddr 测试：无效的检查类型 revert
+    function test_checkValidAddr_RevertIf_InvalidCheckType() public {
+        Harness_NFTAuction harness = new Harness_NFTAuction();
+        vm.expectRevert(abi.encodeWithSignature("InvalidCheckType()"));
+        harness.exposed_checkValidAddr(3, address(0));
+    }    
+
+    // #endregion _checkValidAddr Test End=======================================================  
+
     // #region batchAddTokenCfg 测试开始============================================================
     // batchAddTokenCfg 测试成功场景
     function test_batchAddTokenCfg_Success() public {
@@ -383,6 +341,25 @@ contract NFTAuctionV1Test is Test {
 
         vm.prank(seller1);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", seller1));
+        NFTAuctionV1(auctionSysProxyAddr).batchAddTokenCfg(tokenInitList);
+    }
+
+    // batchAddTokenCfg: 入参数组长度等于10 success
+    // kill mutate: len > 10 --> len >= 10
+    function test_batchAddTokenCfg_AllowedTokenSizeEq10() public {
+        NFTAuctionV1.TokenInitConfig[] memory tokenInitList = new NFTAuctionV1.TokenInitConfig[](10);
+        tokenInitList[0] = NFTAuctionV1.TokenInitConfig({token: 21, tokenAddr: 0x1111111111111111111111111111111111111111, feedAddr: 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419});
+        tokenInitList[1] = NFTAuctionV1.TokenInitConfig({token: 22, tokenAddr: 0x2222222222222222222222222222222222222222, feedAddr: 0xa39434a63A52E9B1C0C696241E2288EAE7071207});
+        tokenInitList[2] = NFTAuctionV1.TokenInitConfig({token: 23, tokenAddr: 0x3333333333333333333333333333333333333333, feedAddr: 0x9331B137732142A7962287875CA2A950d9673218});
+        tokenInitList[3] = NFTAuctionV1.TokenInitConfig({token: 24, tokenAddr: 0x4444444444444444444444444444444444444444, feedAddr: 0x8A753747A1Fa494EC906cE90E9f37563A8AF630e});
+        tokenInitList[4] = NFTAuctionV1.TokenInitConfig({token: 25, tokenAddr: 0x5555555555555555555555555555555555555555, feedAddr: 0xd0c7101eAcbB49f3dECcCC16d2312378d6E82a25});
+        tokenInitList[5] = NFTAuctionV1.TokenInitConfig({token: 26, tokenAddr: 0x6666666666666666666666666666666666666666, feedAddr: 0x7baC85A8A7A5b44dC08cb58fa823193Cb9d73fEb});
+        tokenInitList[6] = NFTAuctionV1.TokenInitConfig({token: 27, tokenAddr: 0x7777777777777777777777777777777777777777, feedAddr: 0x0a77230D1731807698314238A9d1aEAE77807799});
+        tokenInitList[7] = NFTAuctionV1.TokenInitConfig({token: 28, tokenAddr: 0x8888888888888888888888888888888888888888, feedAddr: 0x449d17E727a47772708B55999142c44896408f1e});
+        tokenInitList[8] = NFTAuctionV1.TokenInitConfig({token: 29, tokenAddr: 0x9999999999999999999999999999999999999999, feedAddr: 0x31E08b0810f487d78D87D074B90C6C85150b270f});
+        tokenInitList[9] = NFTAuctionV1.TokenInitConfig({token: 30, tokenAddr: 0x1212121212121212121212121212121212121212, feedAddr: 0x1B44F3514812d835Eb1Bdb0aCb33d3fa3351Ee83});
+
+        vm.prank(auctionSysOwner);
         NFTAuctionV1(auctionSysProxyAddr).batchAddTokenCfg(tokenInitList);
     }
 
@@ -650,8 +627,31 @@ contract NFTAuctionV1Test is Test {
         NFTAuctionV1(auctionSysProxyAddr).updCfgTokenAddr(token, tokenAddr);
     }
 
+    // kill mutate: beforeTokenAddr == tokenAddr --> beforeTokenAddr >= tokenAddr
+    // 测试场景要求 1、enabledTokenAddrs存在此地址；2、此地址 > tokenAddr
+    function test_updCfgTokenAddr_RevertIf_TokenAddrExists1() public {
+        uint256 token = 1;
+        address tokenAddr;
+        address enabledTokenAddr;
+
+        if(isForkMode) {
+            tokenAddr = 0xFF34B3d4Aee8ddCd6F9AFFFB6Fe49bD371b8a357;            
+        } else {
+            tokenAddr = daiAddr;
+        }
+
+        vm.startPrank(auctionSysOwner);
+        // 构造大于tokenAddr的地址
+        enabledTokenAddr = address(uint160(tokenAddr) + uint160(1));        
+        NFTAuctionV1(auctionSysProxyAddr).updCfgTokenAddr(token, enabledTokenAddr);
+
+        vm.expectRevert(abi.encodeWithSelector(NFTAuctionV1.TokenAddrExists.selector));
+        NFTAuctionV1(auctionSysProxyAddr).updCfgTokenAddr(token, tokenAddr);
+        vm.stopPrank();
+    }    
+
     // updCfgTokenAddr: 别的token已存在tokenAddr revert
-    function test_updCfgTokenAddr_RevertIf_TokenAddrExists() public {
+    function test_updCfgTokenAddr_RevertIf_TokenAddrExists2() public {
         uint256 token = 1;
         address tokenAddr;
 
@@ -734,8 +734,31 @@ contract NFTAuctionV1Test is Test {
         NFTAuctionV1(auctionSysProxyAddr).updCfgFeedAddr(token, feedAddr);
     }
 
+    // kill mutate: beforeFeedAddr == feedAddr --> beforeFeedAddr >= feedAddr
+    // 测试场景要求 1、enabledFeedAddrs存在此地址；2、此地址 > feedAddr
+    function test_updCfgFeedAddr_RevertIf_FeedAddrExists1() public {
+        uint256 token = 1;
+        address feedAddr;
+        address enabledFeedAddr;
+
+        if(isForkMode) {
+            feedAddr = 0x14866185B1962B63C3Ea9E03Bc1da838bab34C19;
+        } else {
+            feedAddr = address(mockDaiUsdFeed);
+        }        
+
+        vm.startPrank(auctionSysOwner);
+        // 构造大于feedAddr的地址
+        enabledFeedAddr = address(uint160(feedAddr) + uint160(1));        
+        NFTAuctionV1(auctionSysProxyAddr).updCfgFeedAddr(token, enabledFeedAddr);
+
+        vm.expectRevert(abi.encodeWithSelector(NFTAuctionV1.FeedAddrExists.selector));
+        NFTAuctionV1(auctionSysProxyAddr).updCfgFeedAddr(token, feedAddr);
+        vm.stopPrank();
+    }    
+
     // updCfgFeedAddr: 别的token已存在feedAddr revert
-    function test_updCfgFeedAddr_RevertIf_FeedAddrExists() public {
+    function test_updCfgFeedAddr_RevertIf_FeedAddrExists2() public {
         uint256 token = 1;
         address feedAddr;
 
@@ -1814,7 +1837,7 @@ contract NFTAuctionV1Test is Test {
 
         if(isForkMode) {
             nftContract = SEPOLIA_NFT_ADDR;
-            caller = sepoliaNFT1Owner;
+            caller = ERC721(nftContract).ownerOf(tokenId);
             vm.startPrank(sepoliaNFT1Owner);
             ERC721(nftContract).setApprovalForAll(auctionSysProxyAddr, true);
         } else {
@@ -2134,6 +2157,21 @@ contract NFTAuctionV1Test is Test {
         bytes32 finalSlot = _getTokenAddrsSlot(1);
         vm.store(auctionSysProxyAddr, finalSlot, bytes32(uint256(uint160(address(0)))));
         vm.expectRevert(NFTAuctionV1.InvalidTokenAddr.selector);
+        NFTAuctionV1(auctionSysProxyAddr).getUSDByToken(1, 1);
+    }
+
+    // getUSDByToken 测试场景：无效的rawPrice revert
+    function test_getUSDByToken_RevertIf_InvalidRawPrice() public {
+        vm.skip(isForkMode);
+        mockUsdcUsdFeed.updateAnswer(-123);
+        vm.expectRevert(abi.encodeWithSignature("InvalidRawPrice(int256)", -123));
+        NFTAuctionV1(auctionSysProxyAddr).getUSDByToken(1, 1);
+    }
+
+    // getUSDByToken 测试场景：rawPrice == 0  success
+    function test_getUSDByToken_RawPriceEq0() public {
+        vm.skip(isForkMode);
+        mockUsdcUsdFeed.updateAnswer(0);        
         NFTAuctionV1(auctionSysProxyAddr).getUSDByToken(1, 1);
     }
 
@@ -2765,7 +2803,7 @@ contract NFTAuctionV1Test is Test {
     }
 
     // bidAuction测试场景：出价是不允许的代币，revert
-    function test_bidAuction_RevertIf_InvalidBidToken() public {
+    function test_bidAuction_RevertIf_InvalidBidToken1() public {
         address nftContract;
         if(isForkMode) {
             nftContract = SEPOLIA_NFT_ADDR;
@@ -2793,6 +2831,42 @@ contract NFTAuctionV1Test is Test {
         vm.prank(bidder1);
         vm.expectRevert(abi.encodeWithSelector(NFTAuctionV1.InvalidBidToken.selector));
         NFTAuctionV1(auctionSysProxyAddr).bidAuction(auctionId, 4, 1);
+    }
+
+    // bidAuction测试场景：出价是不允许的代币，revert
+    // kill mutate: allowedTokens[i] == token --> allowedTokens[i] >= token
+    function test_bidAuction_RevertIf_InvalidBidToken2() public {
+       uint256[] memory allowedTokens = new uint256[](2);
+       allowedTokens[0] = 2;
+       allowedTokens[1] = 0;
+
+        address nftContract;
+        if(isForkMode) {
+            nftContract = SEPOLIA_NFT_ADDR;
+            vm.startPrank(sepoliaNFT1Owner);
+            ERC721(SEPOLIA_NFT_ADDR).approve(auctionSysProxyAddr, 1);
+        } else {
+            nftContract = appleNftAddr;
+            vm.startPrank(seller1);
+            appleNft.approve(auctionSysProxyAddr, 1);
+        }       
+        
+        // 创建拍卖
+        uint256 auctionId = NFTAuctionV1(auctionSysProxyAddr).createAuction(NFTAuctionV1.CreateAuctionParams({
+                nftContract: nftContract, 
+                tokenId: 1,
+                startPrice: 0.01 ether, 
+                startTime: currTs + 1 hours, 
+                durationHours: 24, 
+                allowedTokens: allowedTokens
+            }));
+        vm.stopPrank();
+
+        skip(2 hours);
+
+        vm.prank(bidder1);
+        vm.expectRevert(abi.encodeWithSelector(NFTAuctionV1.InvalidBidToken.selector));
+        NFTAuctionV1(auctionSysProxyAddr).bidAuction(auctionId, 1, 50);
     }
 
     // src/NFTAuctionV1.sol:216，(type(uint256).max - $.bidPriceReturns[auctionId][msg.sender]) -> (type(uint256).max ^ $.bidPriceReturns[auctionId][msg.sender])，属于等价突变，不存在安全风险，接受存活。
@@ -3115,8 +3189,11 @@ contract NFTAuctionV1Test is Test {
 
         if(isForkMode) {
             nftContract = SEPOLIA_NFT_ADDR;
-            seller = sepoliaNFT1Owner;
-            sellerInitBalance = sepoliaNFT1OwnerInitBalance;            
+            // sepolia 持有该 NFT 的是 EOA 地址而不是合约地址
+            tokenId = 159;
+            seller = ERC721(nftContract).ownerOf(tokenId);
+            console.log("sepolia seller address:", seller);
+            sellerInitBalance = seller.balance;            
         } else {
             nftContract = appleNftAddr;
             seller = seller1;
@@ -3183,7 +3260,8 @@ contract NFTAuctionV1Test is Test {
 
         if(isForkMode) {
             nftContract = SEPOLIA_NFT_ADDR;
-            seller = sepoliaNFT1Owner;
+            tokenId = 159;
+            seller = ERC721(nftContract).ownerOf(tokenId);
         } else {
             nftContract = appleNftAddr;
             seller = seller1;                
@@ -3554,15 +3632,17 @@ contract NFTAuctionV1Test is Test {
 
     // #endregion 结束拍卖 测试结束==============================================
 
-    // // #region invariant testing ==============================================
-    // // 恒定不变测试：proxy合约balance永远>=出价之和-退款之和-交易之和
-    // function invariant_balance() public view {
-    //     assertGe(
-    //         auctionSysProxyAddr.balance,
-    //         (v1Handler.ghost_bidSum() - v1Handler.ghost_refundSum() - v1Handler.ghost_endValueSum())
-    //     );
-    // }
-
+    
+    // #region invariant testing ==============================================
+    // 恒定不变测试：proxy合约balance永远>=出价之和-退款之和-交易之和
+    function invariant_balance() public {
+        vm.skip(isForkMode);
+        assertGe(
+            auctionSysProxyAddr.balance,
+            (v1Handler.ghost_bidSum() - v1Handler.ghost_refundSum() - v1Handler.ghost_endValueSum())
+        );
+    }
+   
     // // // invariant_balance复现
     // // function test_reproduce_balance_issue() public {
     // //     // setUp自动执行，部署合约
@@ -3634,13 +3714,69 @@ contract NFTAuctionV1Test is Test {
 
     // // }
 
-    // // 仅用于打印调试统计
-    // function invariant_callSummary() public view {
-    //     //v1Handler.callSummary();
-    // }
-    // // #endregion invariant testing ==============================================
+    // 仅用于打印调试统计
+    function invariant_callSummary() public {
+        vm.skip(isForkMode);
+        v1Handler.callSummary();
+    }
+    // #endregion invariant testing ==============================================
 
     // // #region 测试业务的公共函数================================================
+
+    //// 部署NFTAuctionV1合约
+    function _newNftContract(string memory sys, address owner, string memory nftName, string memory nftSymbol, NFTAuctionV1.TokenInitConfig[] memory tokenInitList)
+        internal
+        returns (NFTAuctionV1 nftSys, address nftSysImpAddr, ERC1967Proxy nftSysProxy, address nftSysProxyAddr)
+    {
+        vm.startPrank(owner);
+        console.log(sys, "owner:", owner);
+        nftSys = new NFTAuctionV1();
+        nftSysImpAddr = address(nftSys);
+        console.log(sys, "implementation address:", nftSysImpAddr);
+        bytes memory initData = abi.encodeCall(NFTAuctionV1.initialize, (owner, nftName, nftSymbol, tokenInitList));
+        nftSysProxy = new ERC1967Proxy(nftSysImpAddr, initData);
+        nftSysProxyAddr = address(nftSysProxy);
+        console.log(sys, "proxy address:", nftSysProxyAddr);
+        vm.stopPrank();
+    }
+
+    // 获取AuctionStorage.auctionId
+    function _getStorageAuctionId() internal view returns (uint256) {
+        return uint256(vm.load(auctionSysProxyAddr, AUCTION_STORAGE_LOCATION));
+    }
+
+    // 获取AuctionStorage.ntfToken2AuctionId
+    function _getStorageNtfToken2AuctionId(address nftContract, uint256 tokenId) internal view returns (uint256) {
+        // mapping 基础slot = 根槽 + 相对偏移1
+        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 1);
+        // 第一层key：nftContract合约地址
+        bytes32 layer1 = keccak256(abi.encode(nftContract, mapBase));
+        // 第二层key：tokenId
+        bytes32 finalSlot = keccak256(abi.encode(tokenId, layer1));
+
+        return uint256(vm.load(auctionSysProxyAddr, finalSlot));
+    }
+
+    // 获取bidPriceReturns的slot
+    function _getBidPriceReturnsSlot(uint256 auctionId, address bidder, uint256 token) internal pure returns (bytes32) {
+        // mapping 基础slot = 根槽 + 相对偏移3
+        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 3);
+        // 第一层key：auctionId
+        bytes32 layer1 = keccak256(abi.encode(auctionId, mapBase));
+        // 第二层key：bidder
+        bytes32 layer2 = keccak256(abi.encode(bidder, layer1));
+        // 第三层key：token
+        bytes32 finalSlot = keccak256(abi.encode(token, layer2));
+        return finalSlot;
+    }
+
+    function _getTokenAddrsSlot(uint256 token) internal pure returns (bytes32) {
+        // mapping 基础slot = 根槽 + 相对偏移7
+        bytes32 mapBase = bytes32(uint256(AUCTION_STORAGE_LOCATION) + 7);
+        // 第一层key：token
+        bytes32 finalSlot = keccak256(abi.encode(token, mapBase));
+        return finalSlot;
+    }
 
     function _createAllowedTokens() internal pure returns (uint256[] memory allowedTokens) {
         allowedTokens = new uint256[](3);

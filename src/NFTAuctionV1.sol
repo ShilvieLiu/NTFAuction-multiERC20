@@ -199,7 +199,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
     error InvalidBidToken();
 
     // 代币列表为空
-    error TokenListEmpty();
+    //error TokenListEmpty();
 
     // 无效的实际价格
     error InvalidRawPrice(int256 rawPrice);
@@ -240,6 +240,9 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
     // feedAddr与之前的一样
     error FeedAddrSameBefore();
 
+    // 无效的检查类型
+    error InvalidCheckType();
+
     // #endregion 5. define erros
 
     // #region 6. define modifiers  
@@ -252,6 +255,8 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
                 revert InvalidTokenAddr();
             } else if (checkType == 2) { 
                 revert InvalidFeedAddr();
+            } else {
+                revert InvalidCheckType();
             }
         }
     }
@@ -489,7 +494,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         _createAuctionCheck($, params);
 
         // 检查是否是允许的Tokens，并且判断是否按Token代币竞价
-        bool _isToken = _getIsToken($, params.allowedTokens);
+        bool _isToken = _getIsToken($, params.allowedTokens);        
 
         // 检查：该合约下的NFT没有已创建拍卖        
         uint256 _auctionId = $.ntfToken2AuctionId[params.nftContract][params.tokenId];        
@@ -584,7 +589,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         // 价格超过1小时未更新，判定失效       
         // if(block.timestamp - updateTime > 3600) revert StaleRawPrice(rawPrice, updateTime, block.timestamp);
 
-        // 算出统一18位的usdValue（用于事件、存储）
+        // 算出统一8位的usdValue（用于事件、存储）
         // casting to 'uint256' is safe because prior check ensures rawPrice is non-negative
         // forge-lint: disable-next-line(unsafe-typecast)
         feedRt.usd18Value = (tokenAmount * uint256(feedRt.rawPrice) * 10 ** 8) / ((10 ** uint256(feedRt.tokenDecimals)) * (10 ** uint256(feedRt.feedDecimals))) ;
