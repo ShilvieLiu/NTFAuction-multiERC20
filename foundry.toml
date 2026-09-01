@@ -4,7 +4,8 @@ out = "out"
 libs = ["lib"]
 
 solc_version = "0.8.33"
-
+optimizer = true
+optimizer_runs = 100
 # via_ir = true   # 解决 Stack too deep（栈过深）编译报错
 
 [fuzz]
@@ -18,12 +19,12 @@ depth = 200
 check_interval = 1
 fail_on_revert = false
 
-#[profile.default.symbolic]
-#solver = "z3"
-#timeout = 3000
-#max_depth = 10000000
-#max_paths = 1024
-#max_solver_queries = 10000
+# [profile.default.symbolic]
+# solver = "z3"
+# timeout = 3000
+# max_depth = 10000000
+# max_paths = 1024
+# max_solver_queries = 10000
 
 
 
