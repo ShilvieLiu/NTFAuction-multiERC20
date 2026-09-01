@@ -27,11 +27,18 @@ contract UUPS is Script {
         // 2. 拼接初始化调用数据
         // abi、msg都是solidity内置全局函数和变量
         NFTAuctionV1.TokenInitConfig[] memory tokenInitList = new NFTAuctionV1.TokenInitConfig[](3);
-        tokenInitList[0] = NFTAuctionV1.TokenInitConfig({token: 0, tokenAddr: address(0), feedAddr: vm.envAddress("ETH_USD_FEED")});
-        tokenInitList[1] = NFTAuctionV1.TokenInitConfig({token: 1, tokenAddr: vm.envAddress("USDC_ADDR"), feedAddr: vm.envAddress("USDC_USD_FEED")});
-        tokenInitList[2] = NFTAuctionV1.TokenInitConfig({token: 2, tokenAddr: vm.envAddress("DAI_ADDR"), feedAddr: vm.envAddress("DAI_USD_FEED")});       
+        tokenInitList[0] =
+            NFTAuctionV1.TokenInitConfig({token: 0, tokenAddr: address(0), feedAddr: vm.envAddress("ETH_USD_FEED")});
+        tokenInitList[1] = NFTAuctionV1.TokenInitConfig({
+            token: 1, tokenAddr: vm.envAddress("USDC_ADDR"), feedAddr: vm.envAddress("USDC_USD_FEED")
+        });
+        tokenInitList[2] = NFTAuctionV1.TokenInitConfig({
+            token: 2, tokenAddr: vm.envAddress("DAI_ADDR"), feedAddr: vm.envAddress("DAI_USD_FEED")
+        });
 
-        bytes memory initData = abi.encodeWithSignature("initialize(address,string,string,TokenInitConfig[])", msg.sender,"TEST","TT1", tokenInitList);
+        bytes memory initData = abi.encodeWithSignature(
+            "initialize(address,string,string,TokenInitConfig[])", msg.sender, "TEST", "TT1", tokenInitList
+        );
 
         // 3. 部署UUPS代理, 同时执行V1逻辑合约初始函数
         ERC1967Proxy proxy = new ERC1967Proxy(address(v1), initData);

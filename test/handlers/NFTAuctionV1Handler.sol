@@ -37,9 +37,8 @@ contract NFTAuctionV1Handler is Test {
         vm.startPrank(seller);
         nft.mint(seller, tokenIdCount);
         nft.approve(proxyAddr, tokenIdCount);
-        vm.stopPrank();      
+        vm.stopPrank();
         _;
-        
     }
 
     // 初始化：自动生产10个账号
@@ -76,15 +75,17 @@ contract NFTAuctionV1Handler is Test {
         vm.assume(v1.getNtfToken2AuctionId(address(nft), tokenIdCount) == 0);
 
         successCalls[v1.createAuction.selector]++;
-        v1.createAuction(NFTAuctionV1.CreateAuctionParams({
-            nftContract: address(nft), 
-            tokenId: tokenIdCount,
-            startPrice: startPrice, 
-            startTime: startTime, 
-            durationHours: durationHours, 
-            allowedTokens: allowedTokens
-        }));
-        calls[v1.createAuction.selector]++; 
+        v1.createAuction(
+            NFTAuctionV1.CreateAuctionParams({
+                nftContract: address(nft),
+                tokenId: tokenIdCount,
+                startPrice: startPrice,
+                startTime: startTime,
+                durationHours: durationHours,
+                allowedTokens: allowedTokens
+            })
+        );
+        calls[v1.createAuction.selector]++;
     }
 
     // 取消拍卖
@@ -122,7 +123,7 @@ contract NFTAuctionV1Handler is Test {
         uint256 time = bound(timeSeed, auction.startTime, auction.endTime - 1);
         vm.warp(time);
 
-        successCalls[v1.bidAuction.selector]++;        
+        successCalls[v1.bidAuction.selector]++;
         v1.bidAuction{value: bidPrice}(auctionId, 0, 0);
         calls[v1.bidAuction.selector]++;
 

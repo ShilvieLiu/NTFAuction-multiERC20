@@ -12,7 +12,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-
 contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC721Upgradeable {
     // #region 1. define enum
 
@@ -67,24 +66,24 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         uint256 usd18Value; // 最终值
     }
 
-
     /// @custom:storage-location erc7201:nftauction.storage.auction.v1
     struct AuctionStorage {
         uint256 auctionId; // 拍卖ID
         mapping(address nftContract => mapping(uint256 tokenId => uint256 auctionId)) ntfToken2AuctionId; // 已创建的拍卖
         mapping(uint256 auctionId => AuctionInfo) auctions; // 拍卖的详情
-        mapping(uint256 auctionId => mapping(address bidder => mapping(uint256 token => uint256 bidPrice))) bidPriceReturns; // 出价退回
+        mapping(uint256 auctionId => mapping(address bidder => mapping(uint256 token => uint256 bidPrice)))
+            bidPriceReturns; // 出价退回
         uint256 auctionCount; // 拍卖个数
-        
+
         uint256 tokenCount;
         mapping(uint256 token => bool) enabledTokens;
         mapping(uint256 token => address tokenAddr) tokenAddrs;
         mapping(address tokenAddr => bool) enabledTokenAddrs;
         mapping(uint256 token => address feedAddr) feedAddrs;
-        mapping(address feedAddr => bool) enabledFeedAddrs;       
+        mapping(address feedAddr => bool) enabledFeedAddrs;
         AggregatorV3Interface dataFeed;
     }
-    
+
     // #endregion 2. define struct
 
     // #region 3. define state variables
@@ -93,9 +92,9 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
     bytes32 private constant AUCTION_STORAGE_LOCATION =
         0x4c48d9668da3b85d45dd9d4fe97ed0e93efd4218c47ce0da3f0ab7fa4d259a00;
 
-    using SafeERC20 for IERC20;   
+    using SafeERC20 for IERC20;
 
-    // #endregion 3. define state variables  
+    // #endregion 3. define state variables
 
     // #region 4. define events
 
@@ -115,16 +114,39 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
 
     event AuctionCancel(uint256 indexed auctionId, address indexed operator);
 
-    event BidInfo(uint256 indexed auctionId, address indexed bidder, uint256 bidTime, uint256 bidPrice, uint256 token, uint256 tokenAmount, uint8 bidDecimals);
+    event BidInfo(
+        uint256 indexed auctionId,
+        address indexed bidder,
+        uint256 bidTime,
+        uint256 bidPrice,
+        uint256 token,
+        uint256 tokenAmount,
+        uint8 bidDecimals
+    );
 
     event AuctionEnd(
-        uint256 indexed auctionId, address indexed operator, address indexed winner, uint256 price, uint256 endTime, uint256 token, uint256 tokenAmount
+        uint256 indexed auctionId,
+        address indexed operator,
+        address indexed winner,
+        uint256 price,
+        uint256 endTime,
+        uint256 token,
+        uint256 tokenAmount
     );
 
     event Refund(uint256 indexed auctionId, address indexed withdrawee, uint256 indexed token, uint256 price);
 
-    event GetUSDByToken(uint256 indexed currTime, uint256 indexed token, uint8 tokenDecimals, uint256 updateTime, int256 rawPrice, uint8 feedDecimals, uint8 decimals, uint256 usd18Value);
-    
+    event GetUSDByToken(
+        uint256 indexed currTime,
+        uint256 indexed token,
+        uint8 tokenDecimals,
+        uint256 updateTime,
+        int256 rawPrice,
+        uint8 feedDecimals,
+        uint8 decimals,
+        uint256 usd18Value
+    );
+
     // #endregion 4. define events
 
     // #region 5. define errors
@@ -245,15 +267,15 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
 
     // #endregion 5. define erros
 
-    // #region 6. define modifiers  
+    // #region 6. define modifiers
 
     function _checkValidAddr(uint256 checkType, address addr) internal pure {
-        if(addr == address(0)) {
-            if(checkType == 0) {
+        if (addr == address(0)) {
+            if (checkType == 0) {
                 revert InvalidNftContractAddr();
             } else if (checkType == 1) {
                 revert InvalidTokenAddr();
-            } else if (checkType == 2) { 
+            } else if (checkType == 2) {
                 revert InvalidFeedAddr();
             } else {
                 revert InvalidCheckType();
@@ -277,16 +299,21 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
 
     // #endregion 7. define constructor
 
-    // #region 8. external functions    
+    // #region 8. external functions
 
     // #endregion 8. external functions
 
-    // #region 9. public functions    
+    // #region 9. public functions
 
-    function initialize(address initialOwner, string memory nftName, string memory nftSymbol, TokenInitConfig[] memory tokenInitList) public initializer {
+    function initialize(
+        address initialOwner,
+        string memory nftName,
+        string memory nftSymbol,
+        TokenInitConfig[] memory tokenInitList
+    ) public initializer {
         __Ownable_init(initialOwner);
         __ERC721_init(nftName, nftSymbol);
-        batchAddTokenCfg(tokenInitList);        
+        batchAddTokenCfg(tokenInitList);
     }
 
     /**
@@ -352,7 +379,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
      */
     function getTokenAddr(uint256 token) public view returns (address) {
         return _getAuctionStorage().tokenAddrs[token];
-    }    
+    }
 
     /**
      * 根据token获取配置的对应feedAddr
@@ -373,19 +400,19 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
      */
     function batchAddTokenCfg(TokenInitConfig[] memory tokenInitList) public onlyOwner {
         uint256 len = tokenInitList.length;
-        if(len > 10) revert AllowedTokenSizeOver();
+        if (len > 10) revert AllowedTokenSizeOver();
         TokenInitConfig memory cfg;
         AuctionStorage storage $ = _getAuctionStorage();
-        for(uint256 i = 0; i < len; i++){
+        for (uint256 i = 0; i < len; i++) {
             cfg = tokenInitList[i];
-            if($.enabledTokens[cfg.token]) revert TokenCfgExists();
-            if($.enabledTokenAddrs[cfg.tokenAddr]) revert TokenAddrExists();
-            if($.enabledFeedAddrs[cfg.feedAddr]) revert FeedAddrExists(); 
-            // 默认cfg.token==0是ETH,并且cfg.tokenAddr==address(0)       
-            if(cfg.token > 0){
-                 if(cfg.tokenAddr == address(0)) revert InvalidTokenAddr();
+            if ($.enabledTokens[cfg.token]) revert TokenCfgExists();
+            if ($.enabledTokenAddrs[cfg.tokenAddr]) revert TokenAddrExists();
+            if ($.enabledFeedAddrs[cfg.feedAddr]) revert FeedAddrExists();
+            // 默认cfg.token==0是ETH,并且cfg.tokenAddr==address(0)
+            if (cfg.token > 0) {
+                if (cfg.tokenAddr == address(0)) revert InvalidTokenAddr();
             }
-            if(cfg.feedAddr == address(0)) revert InvalidFeedAddr();
+            if (cfg.feedAddr == address(0)) revert InvalidFeedAddr();
             $.enabledTokens[cfg.token] = true;
             $.enabledTokenAddrs[cfg.tokenAddr] = true;
             $.enabledFeedAddrs[cfg.feedAddr] = true;
@@ -401,18 +428,23 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
      * @param tokenAddr 代币合约地址
      * @param feedAddr 代币/USD地址
      */
-    function addTokenCfg(uint256 token, address tokenAddr, address feedAddr) public onlyOwner validAddr(1, tokenAddr) validAddr(2, feedAddr) {
+    function addTokenCfg(uint256 token, address tokenAddr, address feedAddr)
+        public
+        onlyOwner
+        validAddr(1, tokenAddr)
+        validAddr(2, feedAddr)
+    {
         AuctionStorage storage $ = _getAuctionStorage();
-        if($.enabledTokens[token]) revert TokenCfgExists();
-        if($.enabledTokenAddrs[tokenAddr]) revert TokenAddrExists();
-        if($.enabledFeedAddrs[feedAddr]) revert FeedAddrExists();
-        
+        if ($.enabledTokens[token]) revert TokenCfgExists();
+        if ($.enabledTokenAddrs[tokenAddr]) revert TokenAddrExists();
+        if ($.enabledFeedAddrs[feedAddr]) revert FeedAddrExists();
+
         $.enabledTokens[token] = true;
         $.enabledTokenAddrs[tokenAddr] = true;
         $.enabledFeedAddrs[feedAddr] = true;
         $.tokenAddrs[token] = tokenAddr;
         $.feedAddrs[token] = feedAddr;
-        $.tokenCount++;     
+        $.tokenCount++;
     }
 
     /**
@@ -422,21 +454,21 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
      */
     function updCfgTokenAddr(uint256 token, address tokenAddr) public onlyOwner validAddr(1, tokenAddr) {
         AuctionStorage storage $ = _getAuctionStorage();
-        if(!$.enabledTokens[token]) revert TokenCfgNotExists();
+        if (!$.enabledTokens[token]) revert TokenCfgNotExists();
         address beforeTokenAddr = $.tokenAddrs[token];
-        if($.enabledTokenAddrs[tokenAddr]) {
-            if(beforeTokenAddr == tokenAddr) {
+        if ($.enabledTokenAddrs[tokenAddr]) {
+            if (beforeTokenAddr == tokenAddr) {
                 // tokenAddr跟原先的一样
                 revert TokenAddrSameBefore();
             } else {
                 // 别的token已存在tokenAddr
                 revert TokenAddrExists();
             }
-        }           
+        }
 
-        $.enabledTokenAddrs[tokenAddr] = true;        
+        $.enabledTokenAddrs[tokenAddr] = true;
         $.tokenAddrs[token] = tokenAddr;
-        $.enabledTokenAddrs[beforeTokenAddr] = false;        
+        $.enabledTokenAddrs[beforeTokenAddr] = false;
     }
 
     /**
@@ -446,19 +478,19 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
      */
     function updCfgFeedAddr(uint256 token, address feedAddr) public onlyOwner validAddr(2, feedAddr) {
         AuctionStorage storage $ = _getAuctionStorage();
-        if(!$.enabledTokens[token]) revert TokenCfgNotExists();
+        if (!$.enabledTokens[token]) revert TokenCfgNotExists();
         address beforeFeedAddr = $.feedAddrs[token];
-        if($.enabledFeedAddrs[feedAddr]) {
-            if(beforeFeedAddr == feedAddr) {
+        if ($.enabledFeedAddrs[feedAddr]) {
+            if (beforeFeedAddr == feedAddr) {
                 // tokenAddr跟原先的一样
                 revert FeedAddrSameBefore();
             } else {
                 // 别的token已存在tokenAddr
                 revert FeedAddrExists();
             }
-        }           
+        }
 
-        $.enabledFeedAddrs[feedAddr] = true;        
+        $.enabledFeedAddrs[feedAddr] = true;
         $.feedAddrs[token] = feedAddr;
         $.enabledFeedAddrs[beforeFeedAddr] = false;
     }
@@ -469,16 +501,14 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
      */
     function delTokenCfg(uint256 token) public onlyOwner {
         AuctionStorage storage $ = _getAuctionStorage();
-        if(!$.enabledTokens[token]) revert TokenCfgNotExists();
-        $.enabledTokens[token] = false;   
+        if (!$.enabledTokens[token]) revert TokenCfgNotExists();
+        $.enabledTokens[token] = false;
         $.enabledTokenAddrs[$.tokenAddrs[token]] = false;
         $.enabledFeedAddrs[$.feedAddrs[token]] = false;
         $.tokenAddrs[token] = address(0);
         $.feedAddrs[token] = address(0);
         $.tokenCount--;
     }
-
-    
 
     /**
      * @dev 创建拍卖
@@ -494,32 +524,32 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         _createAuctionCheck($, params);
 
         // 检查是否是允许的Tokens，并且判断是否按Token代币竞价
-        bool _isToken = _getIsToken($, params.allowedTokens);        
+        bool _isToken = _getIsToken($, params.allowedTokens);
 
-        // 检查：该合约下的NFT没有已创建拍卖        
-        uint256 _auctionId = $.ntfToken2AuctionId[params.nftContract][params.tokenId];        
-        if(_auctionId > 0) {
+        // 检查：该合约下的NFT没有已创建拍卖
+        uint256 _auctionId = $.ntfToken2AuctionId[params.nftContract][params.tokenId];
+        if (_auctionId > 0) {
             // 此NFT已创建过拍卖
             AuctionInfo storage _auction = $.auctions[_auctionId];
-            if(_auction.isCreated) revert AuctionAlreadyExists(_auctionId);
+            if (_auction.isCreated) revert AuctionAlreadyExists(_auctionId);
             // 此NFT已创建过拍卖，但创建拍卖取消了(_auction.isCreated = false)，现在重新创建但auctionId用原来的值
         } else {
             // 此NFT没有创建过拍卖
             _auctionId = ++$.auctionId;
-            $.ntfToken2AuctionId[params.nftContract][params.tokenId] = _auctionId;            
-        }        
+            $.ntfToken2AuctionId[params.nftContract][params.tokenId] = _auctionId;
+        }
 
         //以USD竞价，需将ETH的开始价格转成对应的USD作为起拍价
         uint8 _decimals = 18;
         uint256 _startTokenAmount = params.startPrice;
         uint256 _startPrice = params.startPrice;
-        if(_isToken) {
+        if (_isToken) {
             FeedResult memory feedRt = getUSDByToken(0, params.startPrice);
             _startPrice = feedRt.usd18Value;
             _decimals = feedRt.decimals;
-        } 
-       
-        $.auctionCount ++;
+        }
+
+        $.auctionCount++;
         uint256 _endTime = params.startTime + (params.durationHours * 1 hours);
 
         _storeNewAuction({
@@ -532,7 +562,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
             _startTokenAmount: _startTokenAmount,
             _decimals: _decimals
         });
-        
+
         return _auctionId;
     }
 
@@ -561,7 +591,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
 
         emit AuctionCancel(auctionId, msg.sender);
     }
-    
+
     /**
      * 各种代币转成对应的USD价格
      * @param token 出价代币类型
@@ -569,39 +599,41 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
     function getUSDByToken(uint256 token, uint256 tokenAmount) public virtual returns (FeedResult memory feedRt) {
         AuctionStorage storage $ = _getAuctionStorage();
         address feedAddr = $.feedAddrs[token];
-        if(feedAddr == address(0)) revert InvalidFeedAddr();
+        if (feedAddr == address(0)) revert InvalidFeedAddr();
 
         //获取代币的代币精度
         address tokenAddr = $.tokenAddrs[token];
-        if(token == 0) {
+        if (token == 0) {
             feedRt.tokenDecimals = 18;
         } else {
-            if(tokenAddr == address(0)) revert InvalidTokenAddr();
+            if (tokenAddr == address(0)) revert InvalidTokenAddr();
             feedRt.tokenDecimals = IERC20Metadata(tokenAddr).decimals();
-        }                
+        }
 
         $.dataFeed = AggregatorV3Interface(feedAddr);
-        (, feedRt.rawPrice, , feedRt.updateTime, ) = $.dataFeed.latestRoundData();        
+        (, feedRt.rawPrice,, feedRt.updateTime,) = $.dataFeed.latestRoundData();
         feedRt.feedDecimals = $.dataFeed.decimals();
 
         // 安全校验（非常重要，上线必须保留）
-        if(feedRt.rawPrice < 0) revert InvalidRawPrice(feedRt.rawPrice);
-        // 价格超过1小时未更新，判定失效       
+        if (feedRt.rawPrice < 0) revert InvalidRawPrice(feedRt.rawPrice);
+        // 价格超过1小时未更新，判定失效
         // if(block.timestamp - updateTime > 3600) revert StaleRawPrice(rawPrice, updateTime, block.timestamp);
 
         // 算出统一8位的usdValue（用于事件、存储）
         // casting to 'uint256' is safe because prior check ensures rawPrice is non-negative
         // forge-lint: disable-next-line(unsafe-typecast)
-        feedRt.usd18Value = (tokenAmount * uint256(feedRt.rawPrice) * 10 ** 8) / ((10 ** uint256(feedRt.tokenDecimals)) * (10 ** uint256(feedRt.feedDecimals))) ;
+        feedRt.usd18Value = (tokenAmount * uint256(feedRt.rawPrice) * 10 ** 8)
+            / ((10 ** uint256(feedRt.tokenDecimals)) * (10 ** uint256(feedRt.feedDecimals)));
         feedRt.decimals = 8;
 
         emit GetUSDByToken(
-            block.timestamp, 
-            token, feedRt.tokenDecimals, 
-            feedRt.updateTime, 
-            feedRt.rawPrice, 
-            feedRt.feedDecimals, 
-            feedRt.decimals, 
+            block.timestamp,
+            token,
+            feedRt.tokenDecimals,
+            feedRt.updateTime,
+            feedRt.rawPrice,
+            feedRt.feedDecimals,
+            feedRt.decimals,
             feedRt.usd18Value
         );
     }
@@ -631,27 +663,45 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         if (auction.endTime <= block.timestamp) revert AuctionExpired(auctionId);
 
         FeedResult memory _feedRt;
-        if(auction.isToken) {
+        if (auction.isToken) {
             // 可以Token出价，则使用USD比大小
-            if(msg.value > 0) {
+            if (msg.value > 0) {
                 // ETH出价=================================
                 _feedRt = getUSDByToken(0, msg.value);
-                _bidLogic(auctionId, $, auction, msg.sender, _feedRt.usd18Value, 0, msg.value, block.timestamp, _feedRt.decimals);
-               
+                _bidLogic(
+                    auctionId,
+                    $,
+                    auction,
+                    msg.sender,
+                    _feedRt.usd18Value,
+                    0,
+                    msg.value,
+                    block.timestamp,
+                    _feedRt.decimals
+                );
             } else {
                 // Token出价==============================
-                if(amount == 0) revert InvalidBidAmount();
-                if(!_isTokenAllowed(auction.allowedTokens, token)) revert InvalidBidToken();
+                if (amount == 0) revert InvalidBidAmount();
+                if (!_isTokenAllowed(auction.allowedTokens, token)) revert InvalidBidToken();
                 // Token转账到此合约
                 IERC20($.tokenAddrs[token]).safeTransferFrom(msg.sender, address(this), amount);
                 _feedRt = getUSDByToken(token, amount);
-                _bidLogic(auctionId, $, auction, msg.sender, _feedRt.usd18Value, token, amount, block.timestamp, _feedRt.decimals);
+                _bidLogic(
+                    auctionId,
+                    $,
+                    auction,
+                    msg.sender,
+                    _feedRt.usd18Value,
+                    token,
+                    amount,
+                    block.timestamp,
+                    _feedRt.decimals
+                );
             }
-
         } else {
             // 仅ETH出价，使用ETH比大小=====================
-            _bidLogic(auctionId, $, auction, msg.sender, msg.value, 0, msg.value, block.timestamp, 18);            
-        }        
+            _bidLogic(auctionId, $, auction, msg.sender, msg.value, 0, msg.value, block.timestamp, 18);
+        }
     }
 
     /**
@@ -665,7 +715,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
 
         $.bidPriceReturns[auctionId][msg.sender][token] = 0;
 
-        if(token == 0) {
+        if (token == 0) {
             (bool success,) = payable(msg.sender).call{value: _price}("");
             if (!success) revert RefundTransferFailed(msg.sender, _price);
         } else {
@@ -711,12 +761,12 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
             uint256 _price = auction.currHighestPrice;
             uint256 _token = auction.highestBidToken;
             uint256 _amount = auction.currHighestTokenAmount;
-            if(_token == 0) {
+            if (_token == 0) {
                 (bool success,) = payable(_sellerAddr).call{value: _amount}("");
                 if (!success) revert EndAuctionTransferFailed(_sellerAddr, _amount);
             } else {
                 IERC20($.tokenAddrs[_token]).safeTransfer(_sellerAddr, _amount);
-            }            
+            }
 
             emit AuctionEnd(auctionId, msg.sender, _bidderAddr, _price, block.timestamp, _token, _amount);
         }
@@ -729,32 +779,36 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
     // 强制开发者自定义谁才能升级合约
     function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
         //require(newImplementation != address(0), "New implementation is not zero address!"); // 可省略，因为UUPSUpgradeable里已校验
-    }   
+    }
 
     /**
      * 返回是否按照ETH竞价还是USD竞价
      * 返回false：按ETH竞价
      * 返回true：按USD竞价
      */
-    function _getIsToken(AuctionStorage storage $, uint256[] calldata allowedTokens) internal view returns (bool) {        
+    function _getIsToken(AuctionStorage storage $, uint256[] calldata allowedTokens) internal view returns (bool) {
         bool _isToken = false;
         uint256 _token;
-        for(uint256 i = 0 ; i < allowedTokens.length ; i++){
+        for (uint256 i = 0; i < allowedTokens.length; i++) {
             _token = allowedTokens[i];
-            if(!$.enabledTokens[_token]) revert InvalidAllowedToken(_token);
-            if(!_isToken) {
-                if(_token > 0) _isToken = true;
-            }            
+            if (!$.enabledTokens[_token]) revert InvalidAllowedToken(_token);
+            if (!_isToken) {
+                if (_token > 0) _isToken = true;
+            }
         }
         return _isToken;
     }
 
-    function _createAuctionCheck(AuctionStorage storage $, CreateAuctionParams calldata params) internal view validAddr(0, params.nftContract) {
+    function _createAuctionCheck(AuctionStorage storage $, CreateAuctionParams calldata params)
+        internal
+        view
+        validAddr(0, params.nftContract)
+    {
         // 检查：开始价格必须大于0
         if (params.startPrice == 0) revert StartPriceMustGtZero();
 
         // 检查：allowedTokens长度不能超过可允许的token配置的最大长度
-        if(params.allowedTokens.length > $.tokenCount) revert AllowedTokenSizeOver();
+        if (params.allowedTokens.length > $.tokenCount) revert AllowedTokenSizeOver();
 
         // 检查：持续时间必须在24-168小时之间
         if (params.durationHours < 24 || params.durationHours > 168) revert DurationHoursOutOfRange();
@@ -772,7 +826,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         if (params.startTime > block.timestamp + 1 weeks) revert StartTimeOverMaxValue();
 
         // 检查：待创建拍卖的NFT所在的合约地址不能为0
-        //if (params.nftContract == address(0)) revert InvalidNftContractAddr();        
+        //if (params.nftContract == address(0)) revert InvalidNftContractAddr();
 
         // 检查：调用者必须是tokenId的所有者
         IERC721 nft = IERC721(params.nftContract);
@@ -781,7 +835,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         // 检查：待拍卖的NFT必须已授权给此合约
         if (!(address(this) == nft.getApproved(params.tokenId) || nft.isApprovedForAll(msg.sender, address(this)))) {
             revert NftNotApproved();
-        }        
+        }
     }
 
     function _storeNewAuction(
@@ -794,7 +848,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         uint256 _startTokenAmount,
         uint8 _decimals
     ) internal {
-         $.auctions[_auctionId] = AuctionInfo({
+        $.auctions[_auctionId] = AuctionInfo({
             auctionId: _auctionId,
             tokenId: params.tokenId,
             startPrice: _startPrice,
@@ -814,12 +868,24 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
             currHighestDecimals: _decimals
         });
 
-        emit AuctionCreated(_auctionId, msg.sender, params.nftContract, params.tokenId, _startPrice, params.startTime, _endTime, _isToken, params.allowedTokens, _decimals, _startTokenAmount);
+        emit AuctionCreated(
+            _auctionId,
+            msg.sender,
+            params.nftContract,
+            params.tokenId,
+            _startPrice,
+            params.startTime,
+            _endTime,
+            _isToken,
+            params.allowedTokens,
+            _decimals,
+            _startTokenAmount
+        );
     }
 
     function _isTokenAllowed(uint256[] storage allowedTokens, uint256 token) internal view returns (bool) {
-        for(uint8 i = 0 ; i < allowedTokens.length ; i++){
-            if(allowedTokens[i] == token) return true;
+        for (uint8 i = 0; i < allowedTokens.length; i++) {
+            if (allowedTokens[i] == token) return true;
         }
         return false;
     }
@@ -840,17 +906,21 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
 
         // 检查：出价人的出价+待退款<uint256.max
         // msg.value + $.bidPriceReturns[auctionId][msg.sender] <= type(uint256).max这样写会出现a+b超过uint256最大值而报错的风险，所以改为如下写法
-        // 由于合约里可以接收累计的最大金额为uint256的最大值，同时拍卖每次出价都需高于前一次出价，因此任何出价人累计的金额永远都不可能超过uint256的最大值，所以此检查为了节约gas可以省略。也可为了安全性使用。        
-        if (bidAmount > type(uint256).max - $.bidPriceReturns[auctionId][msg.sender][bidToken]) revert refundAfterBid();       
+        // 由于合约里可以接收累计的最大金额为uint256的最大值，同时拍卖每次出价都需高于前一次出价，因此任何出价人累计的金额永远都不可能超过uint256的最大值，所以此检查为了节约gas可以省略。也可为了安全性使用。
+        if (bidAmount > type(uint256).max - $.bidPriceReturns[auctionId][msg.sender][bidToken]) {
+            revert refundAfterBid();
+        }
 
         // 记录某拍卖某出价者需要退回的金额
-        if (auction.highestBidder != address(0)) {            
-            $.bidPriceReturns[auctionId][auction.highestBidder][auction.highestBidToken] += auction.currHighestTokenAmount;            
-        }       
+        if (auction.highestBidder != address(0)) {
+            $.bidPriceReturns[
+                auctionId
+            ][auction.highestBidder][auction.highestBidToken] += auction.currHighestTokenAmount;
+        }
 
         // 更新最新最高出价、出价者
         auction.currHighestPrice = bidPrice;
-        auction.highestBidder = bidder;        
+        auction.highestBidder = bidder;
         auction.highestBidToken = bidToken;
         auction.currHighestTokenAmount = bidAmount;
 
@@ -867,6 +937,5 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         }
     }
 
-    // #endregion 11. private functions 
-    
+    // #endregion 11. private functions
 }
