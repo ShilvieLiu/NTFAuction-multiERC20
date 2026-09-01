@@ -84,7 +84,7 @@ contract NFTAuctionV1Handler is Test {
             durationHours: durationHours, 
             allowedTokens: allowedTokens
         }));
-        calls[v1.createAuction.selector]++;
+        calls[v1.createAuction.selector]++; 
     }
 
     // 取消拍卖
@@ -122,7 +122,7 @@ contract NFTAuctionV1Handler is Test {
         uint256 time = bound(timeSeed, auction.startTime, auction.endTime - 1);
         vm.warp(time);
 
-        successCalls[v1.bidAuction.selector]++;
+        successCalls[v1.bidAuction.selector]++;        
         v1.bidAuction{value: bidPrice}(auctionId, 0, 0);
         calls[v1.bidAuction.selector]++;
 
