@@ -93,6 +93,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         0x4c48d9668da3b85d45dd9d4fe97ed0e93efd4218c47ce0da3f0ab7fa4d259a00;
 
     using SafeERC20 for IERC20;
+    uint256[50] private __gap;
 
     // #endregion 3. define state variables
 
