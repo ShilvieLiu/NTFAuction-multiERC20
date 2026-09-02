@@ -1,19 +1,19 @@
 # NFT多币种拍卖系统
 
 ## 项目概述
-该系统是一个**可升级的多币种 NFT 拍卖合约**
-- **架构**：UUPS‑Upgradeable 代理模式 + EIP‑7201 命名空间存储，安全支持合约逻辑迭代升级
-- **币种两级管控**：管理员全局维护系统出价币种（增 / 删 / 改 / 批量配置）；创建拍卖时可从系统币种池，自定义本轮拍卖允许的出价币种
-- **拍卖规则**：可自定义拍卖起始时间，时长限制 24‑168 小时
-- **多币种竞价**：支持 ETH/ERC20 混合出价，借助 Chainlink 预言机统一换算 USD 比价，实现跨币种公平竞价
-- **资金清算**：旧出价自动记账，需用户手动调用`refund()`取回资金；拍卖结束，赢家 / 卖家均可调用`endAuction()`完成 NFT 交割与资金结算
+该系统是可升级多币种 NFT 链上拍卖系统
+- 基于 UUPS‑Upgradeable + EIP‑7201 安全存储
+- 支持 ETH、ERC20 混合竞价，依靠 Chainlink 预言机做 USD 统一比价
+- 支持管理员全局管理币种
+- 创建拍卖时可限定本场拍卖可用币种
+- 完成 NFT 拍卖、资产与资金链上清算
 
 ## 技术栈
 - Solidity：`^0.8.33`
 - 合约库：OpenZeppelin‑contracts‑upgradeable `Initializable / OwnableUpgradeable / UUPSUpgradeable / ERC721Upgradeable`
 - 预言机：Chainlink Data Feed `AggregatorV3Interface`
 - 测试框架：Foundry（Fuzz testing / Invariant testing/ Table testing / Mutation testing / Brutalized testing）
-- 存储规范：**EIP‑7201 erc7201:nftauction.storage.auction.v1**
+- 存储规范：EIP‑7201 erc7201:nftauction.storage.auction.v1
 - 升级模式：UUPS Upgradeable
 
 ## 项目结构
