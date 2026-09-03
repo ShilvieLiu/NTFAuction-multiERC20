@@ -11,8 +11,9 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC721Upgradeable {
+contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC721Upgradeable, IERC721Receiver {
     // #region 1. define enum
 
     // 出价币种类型
@@ -511,6 +512,16 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         $.tokenCount--;
     }
 
+    // ERC721接收回调，必须实现，才能接收safeTransferFrom转入的NFT
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) public override pure returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
     /**
      * @dev 创建拍卖
      * @param params 参数
@@ -522,7 +533,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
      */
     function createAuction(CreateAuctionParams calldata params) public returns (uint256) {
         AuctionStorage storage $ = _getAuctionStorage();
-        _createAuctionCheck($, params);
+        IERC721 nft = _createAuctionCheck($, params);
 
         // 检查是否是允许的Tokens，并且判断是否按Token代币竞价
         bool _isToken = _getIsToken($, params.allowedTokens);
@@ -538,7 +549,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
             // 此NFT没有创建过拍卖
             _auctionId = ++$.auctionId;
             $.ntfToken2AuctionId[params.nftContract][params.tokenId] = _auctionId;
-        }
+        }        
 
         //以USD竞价，需将ETH的开始价格转成对应的USD作为起拍价
         uint8 _decimals = 18;
@@ -549,6 +560,9 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
             _startPrice = feedRt.usd18Value;
             _decimals = feedRt.decimals;
         }
+
+        // 将NFT从卖家钱包转移到本合约(代理合约地址)托管
+        nft.safeTransferFrom(msg.sender, address(this), params.tokenId);  
 
         $.auctionCount++;
         uint256 _endTime = params.startTime + (params.durationHours * 1 hours);
@@ -589,6 +603,9 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         // 更新拍卖信息
         $.auctionCount--;
         auction.isCreated = false;
+
+        // NFT取消合约托管，NFT还给卖家
+        IERC721(auction.nftContract).safeTransferFrom(address(this), msg.sender, auction.tokenId);
 
         emit AuctionCancel(auctionId, msg.sender);
     }
@@ -752,12 +769,13 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         auction.isEnded = true;
         //uint256 currTs = block.timestamp;
         if (_bidderAddr == address(0)) {
-            // 没有人竞拍
+            // 没有人竞拍：将NFT退还给卖家
+            IERC721(auction.nftContract).safeTransferFrom(address(this), _sellerAddr, auction.tokenId);
             emit AuctionEnd(auctionId, msg.sender, _bidderAddr, 0, block.timestamp, 0, 0);
         } else {
             // 有人竞拍
             /// 1. 卖者转移NFT给拍卖获胜者
-            IERC721(auction.nftContract).safeTransferFrom(_sellerAddr, _bidderAddr, auction.tokenId);
+            IERC721(auction.nftContract).safeTransferFrom(address(this), _bidderAddr, auction.tokenId);
             /// 2. 此合约把钱转给卖者
             uint256 _price = auction.currHighestPrice;
             uint256 _token = auction.highestBidToken;
@@ -804,6 +822,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         internal
         view
         validAddr(0, params.nftContract)
+        returns (IERC721 nft)
     {
         // 检查：开始价格必须大于0
         if (params.startPrice == 0) revert StartPriceMustGtZero();
@@ -830,7 +849,7 @@ contract NFTAuctionV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC
         //if (params.nftContract == address(0)) revert InvalidNftContractAddr();
 
         // 检查：调用者必须是tokenId的所有者
-        IERC721 nft = IERC721(params.nftContract);
+        nft = IERC721(params.nftContract);
         if (msg.sender != nft.ownerOf(params.tokenId)) revert NotNftOwner(msg.sender);
 
         // 检查：待拍卖的NFT必须已授权给此合约
