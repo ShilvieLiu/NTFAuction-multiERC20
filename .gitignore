@@ -19,3 +19,7 @@ showmap/
 # coverage report
 coverage/
 lcov.info
+
+# lib or node_modules
+lib/
+node_modules/
