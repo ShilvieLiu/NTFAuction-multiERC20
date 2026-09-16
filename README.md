@@ -185,42 +185,7 @@ NFTAuctionV1
 
 ## 环境变量配置
 
-参考 `.env.example` 文件：
-
-```bash
-FORK_MODE=false                    # false=本地Mock, true=Sepolia测试网
-SEPOLIA_RPC_URL=...                # Sepolia RPC 地址
-SEPOLIA_SELLER1_ADDR=...           # 卖家地址
-SEPOLIA_BIDDER1_ADDR=...           # 出价者地址
-USDC_ADDR=...                      # USDC 合约地址
-DAI_ADDR=...                       # DAI 合约地址
-ETH_USD_FEED=...                   # ETH/USD Chainlink 喂价地址
-USDC_USD_FEED=...                  # USDC/USD Chainlink 喂价地址
-DAI_USD_FEED=...                   # DAI/USD Chainlink 喂价地址
-```
-
-## Foundry 配置
-
-```toml
-[profile.default]
-src = "src"
-out = "out"
-libs = ["lib"]
-solc_version = "0.8.33"
-optimizer = true
-optimizer_runs = 100
-
-[fuzz]
-runs = 512
-corpus_dir = "cache/fuzz-corpus"
-show_edge_coverage = true
-
-[invariant]
-runs = 512
-depth = 200
-check_interval = 1
-fail_on_revert = false
-```
+参考 `.env.example` 文件
 
 ## 安全考虑
 
