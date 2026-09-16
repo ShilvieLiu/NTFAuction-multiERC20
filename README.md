@@ -35,6 +35,7 @@
 
 ```bash
 forge install
+npm install
 ```
 
 ### 编译合约
@@ -48,22 +49,6 @@ forge build
 ```bash
 # 运行所有测试
 forge test
-
-# 运行测试并显示覆盖率
-forge test --gas-report
-
-# 运行 fuzz 测试
-forge test --match-contract NFTAuctionV1Test --fuzz-runs 512
-
-# 运行 invariant 测试
-forge test --match-contract NFTAuctionV1Test --invariant-runs 512 --invariant-depth 200
-```
-
-### 运行测试覆盖率报告
-
-```bash
-forge coverage --report lcov
-genhtml lcov.info -o coverage
 ```
 
 ### 本地部署（测试）
