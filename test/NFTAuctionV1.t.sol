@@ -279,14 +279,21 @@ contract NFTAuctionV1Test is Test {
     // initialize测试：NotEthTokenCfg revert
     function test_initialize_RevertWhen_NotEthTokenCfg() public {
         NFTAuctionV1 v1 = new NFTAuctionV1();
-
         NFTAuctionV1.TokenInitConfig[] memory tokenInitList = new NFTAuctionV1.TokenInitConfig[](2);
-        tokenInitList[0] = NFTAuctionV1.TokenInitConfig({
-            token: 1, tokenAddr: vm.envAddress("USDC_ADDR"), feedAddr: vm.envAddress("USDC_USD_FEED")
-        });
-        tokenInitList[1] = NFTAuctionV1.TokenInitConfig({
-            token: 2, tokenAddr: vm.envAddress("DAI_ADDR"), feedAddr: vm.envAddress("DAI_USD_FEED")
-        });
+
+        if (isForkMode) {
+            tokenInitList[0] = NFTAuctionV1.TokenInitConfig({
+                token: 1, tokenAddr: vm.envAddress("USDC_ADDR"), feedAddr: vm.envAddress("USDC_USD_FEED")
+            });
+            tokenInitList[1] = NFTAuctionV1.TokenInitConfig({
+                token: 2, tokenAddr: vm.envAddress("DAI_ADDR"), feedAddr: vm.envAddress("DAI_USD_FEED")
+            });
+        } else {
+            tokenInitList[0] =
+                NFTAuctionV1.TokenInitConfig({token: 1, tokenAddr: usdcAddr, feedAddr: address(mockUsdcUsdFeed)});
+            tokenInitList[1] =
+                NFTAuctionV1.TokenInitConfig({token: 2, tokenAddr: daiAddr, feedAddr: address(mockDaiUsdFeed)});
+        }
 
         bytes memory initData = abi.encodeCall(NFTAuctionV1.initialize, (address(this), "TEST", "TT1", tokenInitList));
 
