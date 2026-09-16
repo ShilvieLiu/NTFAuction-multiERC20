@@ -26,9 +26,9 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: "1.7.1"
-            
+      
       - name: Install forge dependencies
-        run: forge install
+        run: git submodule update --init --recursive
 
       - name: Install npm dependencies
         run: npm install
