@@ -36,9 +36,7 @@ contract UUPS is Script {
             token: 2, tokenAddr: vm.envAddress("DAI_ADDR"), feedAddr: vm.envAddress("DAI_USD_FEED")
         });
 
-        bytes memory initData = abi.encodeWithSignature(
-            "initialize(address,string,string,TokenInitConfig[])", msg.sender, "TEST", "TT1", tokenInitList
-        );
+        bytes memory initData = abi.encodeCall(NFTAuctionV1.initialize, (msg.sender, "TEST", "TT1", tokenInitList));
 
         // 3. 部署UUPS代理, 同时执行V1逻辑合约初始函数
         ERC1967Proxy proxy = new ERC1967Proxy(address(v1), initData);
