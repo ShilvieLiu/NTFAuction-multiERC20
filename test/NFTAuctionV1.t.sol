@@ -42,7 +42,6 @@ contract Harness_NFTAuction is NFTAuctionV1 {
     function exposed_checkValidAddr(uint256 checkType, address addr) external pure {
         _checkValidAddr(checkType, addr);
     }
-
 }
 
 contract NFTAuctionV1Test is Test {
@@ -281,25 +280,25 @@ contract NFTAuctionV1Test is Test {
     function test_initialize_RevertWhen_NotEthTokenCfg() public {
         NFTAuctionV1 v1 = new NFTAuctionV1();
 
-        NFTAuctionV1.TokenInitConfig[] memory tokenInitList = new NFTAuctionV1.TokenInitConfig[](2);        
+        NFTAuctionV1.TokenInitConfig[] memory tokenInitList = new NFTAuctionV1.TokenInitConfig[](2);
         tokenInitList[0] = NFTAuctionV1.TokenInitConfig({
             token: 1, tokenAddr: vm.envAddress("USDC_ADDR"), feedAddr: vm.envAddress("USDC_USD_FEED")
         });
         tokenInitList[1] = NFTAuctionV1.TokenInitConfig({
             token: 2, tokenAddr: vm.envAddress("DAI_ADDR"), feedAddr: vm.envAddress("DAI_USD_FEED")
         });
-        
+
         bytes memory initData = abi.encodeCall(NFTAuctionV1.initialize, (address(this), "TEST", "TT1", tokenInitList));
 
         vm.expectRevert(abi.encodeWithSignature("NotEthTokenCfg()"));
         new ERC1967Proxy(address(v1), initData);
-    }    
+    }
 
     // #endregion UUPS Test End=======================================================
 
     // #region _checkValidAddr Test Start=======================================================
     // _checkValidAddr 测试：无效的检查类型 revert
-    function test_checkValidAddr_RevertIf_InvalidCheckType() public {        
+    function test_checkValidAddr_RevertIf_InvalidCheckType() public {
         vm.expectRevert(abi.encodeWithSignature("InvalidCheckType()"));
         harness.exposed_checkValidAddr(3, address(0));
     }
@@ -489,7 +488,7 @@ contract NFTAuctionV1Test is Test {
         NFTAuctionV1(auctionSysProxyAddr).batchAddTokenCfg(tokenInitList);
     }
 
-     // batchAddTokenCfg: token==0 && tokenAddr!=address(0) revert
+    // batchAddTokenCfg: token==0 && tokenAddr!=address(0) revert
     function test_batchAddTokenCfg_InvalidTokenAddr1() public {
         // 为测试创造条件，先修改storage里的值
         address testTokenAddr = 0x779877A7B0D9E8603169DdbD7836e478b4624789;
@@ -926,7 +925,7 @@ contract NFTAuctionV1Test is Test {
     // #region 创建拍卖 测试开始============================================================
     // createAuction 测试成功场景1：allowedTokens ETH和代币全有 & NFT第一次创建拍卖
     function test_createAuction_Success1() public {
-        uint256[] memory allowedTokens =  new uint256[](3);
+        uint256[] memory allowedTokens = new uint256[](3);
         allowedTokens[0] = 0;
         allowedTokens[1] = 1;
         allowedTokens[2] = 2;
@@ -1006,15 +1005,21 @@ contract NFTAuctionV1Test is Test {
         assertEq(info.seller, caller);
         assertEq(info.isCreated, true);
         assertEq(info.isEnded, false);
-        assertEq(info.isToken, true);      
+        assertEq(info.isToken, true);
         assertEq(info.allowedTokens, allowedTokens);
         assertEq(info.highestBidToken, 0);
         assertEq(info.currHighestTokenAmount, params.startPrice);
         assertEq(info.currHighestDecimals, feedRt.decimals);
         assertEq(ERC721(nftContract).ownerOf(APPLENFT_TOKENID_1), auctionSysProxyAddr);
-        _checkTokenInitConfig(NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 0), allowedTokensList[0]);
-        _checkTokenInitConfig(NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 1), allowedTokensList[1]);
-        _checkTokenInitConfig(NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 2), allowedTokensList[2]);
+        _checkTokenInitConfig(
+            NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 0), allowedTokensList[0]
+        );
+        _checkTokenInitConfig(
+            NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 1), allowedTokensList[1]
+        );
+        _checkTokenInitConfig(
+            NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 2), allowedTokensList[2]
+        );
 
         vm.stopPrank();
     }
@@ -1040,12 +1045,12 @@ contract NFTAuctionV1Test is Test {
             tokenId1 = SEPOLIA_TOKENID_1;
             tokenId2 = SEPOLIA_TOKENID_2;
             nftContract = SEPOLIA_NFT_ADDR;
-            seller = sepoliaNFT1Owner;           
+            seller = sepoliaNFT1Owner;
         } else {
             tokenId1 = APPLENFT_TOKENID_1;
             tokenId2 = APPLENFT_TOKENID_2;
             nftContract = appleNftAddr;
-            seller = seller1;            
+            seller = seller1;
         }
 
         vm.startPrank(seller);
@@ -1082,8 +1087,12 @@ contract NFTAuctionV1Test is Test {
         assertEq(ERC721(nftContract).ownerOf(tokenId2), auctionSysProxyAddr);
         NFTAuctionV1.AuctionInfo memory info1 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId2);
         assertEq(info1.allowedTokens, allowedTokens3);
-        _checkTokenInitConfig(NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info1.auctionId, 0), allowedTokensList[0]);
-        _checkTokenInitConfig(NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info1.auctionId, 1), allowedTokensList[1]);
+        _checkTokenInitConfig(
+            NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info1.auctionId, 0), allowedTokensList[0]
+        );
+        _checkTokenInitConfig(
+            NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info1.auctionId, 1), allowedTokensList[1]
+        );
 
         // 3. 对拍卖 1 取消拍卖
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId1);
@@ -1118,7 +1127,11 @@ contract NFTAuctionV1Test is Test {
         uint256[] memory allowedTokens = new uint256[](1);
         allowedTokens[0] = 0;
         NFTAuctionV1.TokenInitConfig[] memory allowedTokensList = new NFTAuctionV1.TokenInitConfig[](1);
-        allowedTokensList[0] = NFTAuctionV1.TokenInitConfig({token: 0, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(0), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(0)});
+        allowedTokensList[0] = NFTAuctionV1.TokenInitConfig({
+            token: 0,
+            tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(0),
+            feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(0)
+        });
         address nftContract;
         address caller;
 
@@ -1191,12 +1204,14 @@ contract NFTAuctionV1Test is Test {
         assertEq(info.isCreated, true);
         assertEq(info.isEnded, false);
         assertEq(info.isToken, false);
-        assertEq(info.allowedTokens, allowedTokens);      
+        assertEq(info.allowedTokens, allowedTokens);
         assertEq(info.highestBidToken, 0);
         assertEq(info.currHighestTokenAmount, params.startPrice);
         assertEq(info.currHighestDecimals, 18);
         assertEq(ERC721(nftContract).ownerOf(APPLENFT_TOKENID_1), auctionSysProxyAddr);
-        _checkTokenInitConfig(NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 0), allowedTokensList[0]);
+        _checkTokenInitConfig(
+            NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 0), allowedTokensList[0]
+        );
 
         vm.stopPrank();
     }
@@ -1214,7 +1229,7 @@ contract NFTAuctionV1Test is Test {
             tokenId1 = SEPOLIA_TOKENID_1;
             tokenId2 = SEPOLIA_TOKENID_2;
             nftContract = SEPOLIA_NFT_ADDR;
-            seller = sepoliaNFT1Owner;            
+            seller = sepoliaNFT1Owner;
         } else {
             tokenId1 = APPLENFT_TOKENID_1;
             tokenId2 = APPLENFT_TOKENID_2;
@@ -1279,7 +1294,11 @@ contract NFTAuctionV1Test is Test {
         uint256[] memory expectAllowedTokens = new uint256[](1);
         expectAllowedTokens[0] = 0;
         NFTAuctionV1.TokenInitConfig[] memory allowedTokensList = new NFTAuctionV1.TokenInitConfig[](1);
-        allowedTokensList[0] = NFTAuctionV1.TokenInitConfig({token: 0, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(0), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(0)});
+        allowedTokensList[0] = NFTAuctionV1.TokenInitConfig({
+            token: 0,
+            tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(0),
+            feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(0)
+        });
         address nftContract;
         address caller;
 
@@ -1352,12 +1371,14 @@ contract NFTAuctionV1Test is Test {
         assertEq(info.isCreated, true);
         assertEq(info.isEnded, false);
         assertEq(info.isToken, false);
-        assertEq(info.allowedTokens, expectAllowedTokens);    
+        assertEq(info.allowedTokens, expectAllowedTokens);
         assertEq(info.highestBidToken, 0);
         assertEq(info.currHighestTokenAmount, params.startPrice);
         assertEq(info.currHighestDecimals, 18);
         assertEq(ERC721(nftContract).ownerOf(APPLENFT_TOKENID_1), auctionSysProxyAddr);
-        _checkTokenInitConfig(NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 0), allowedTokensList[0]);
+        _checkTokenInitConfig(
+            NFTAuctionV1(auctionSysProxyAddr).getTokenInitCfg(info.auctionId, 0), allowedTokensList[0]
+        );
 
         vm.stopPrank();
     }
@@ -1374,7 +1395,7 @@ contract NFTAuctionV1Test is Test {
             tokenId1 = SEPOLIA_TOKENID_1;
             tokenId2 = SEPOLIA_TOKENID_2;
             nftContract = SEPOLIA_NFT_ADDR;
-            seller = sepoliaNFT1Owner;            
+            seller = sepoliaNFT1Owner;
         } else {
             tokenId1 = APPLENFT_TOKENID_1;
             tokenId2 = APPLENFT_TOKENID_2;
@@ -2019,7 +2040,7 @@ contract NFTAuctionV1Test is Test {
         if (isForkMode) {
             tokenId = SEPOLIA_TOKENID_1;
             nftContract = SEPOLIA_NFT_ADDR;
-            seller = sepoliaNFT1Owner;            
+            seller = sepoliaNFT1Owner;
         } else {
             nftContract = appleNftAddr;
             seller = seller1;
@@ -2069,7 +2090,7 @@ contract NFTAuctionV1Test is Test {
         if (isForkMode) {
             tokenId = SEPOLIA_TOKENID_1;
             nftContract = SEPOLIA_NFT_ADDR;
-            seller = sepoliaNFT1Owner;            
+            seller = sepoliaNFT1Owner;
         } else {
             nftContract = appleNftAddr;
             seller = seller1;
@@ -2094,17 +2115,17 @@ contract NFTAuctionV1Test is Test {
         //取消拍卖
         NFTAuctionV1(auctionSysProxyAddr).cancelAuction(auctionId1);
         NFTAuctionV1.AuctionInfo memory info1 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId1);
-        assertEq(info1.isCreated, false);     
-        
+        assertEq(info1.isCreated, false);
+
         // 作弊修改isCreated=true
         _hackSetIsCreated(auctionId1, true);
         NFTAuctionV1.AuctionInfo memory info2 = NFTAuctionV1(auctionSysProxyAddr).getAuctionInfo(auctionId1);
         assertEq(info2.isCreated, true);
 
         // 授权
-        ERC721(nftContract).approve(auctionSysProxyAddr, tokenId);       
+        ERC721(nftContract).approve(auctionSysProxyAddr, tokenId);
 
-        // 第二次创建拍卖        
+        // 第二次创建拍卖
         vm.expectRevert(abi.encodeWithSignature("AuctionAlreadyExists(uint256)", auctionId1));
         NFTAuctionV1(auctionSysProxyAddr)
             .createAuction(
@@ -4278,7 +4299,7 @@ contract NFTAuctionV1Test is Test {
             // 设置第bitPos位为false
             slotVal = slotVal & ~mask;
         }
-        
+
         vm.store(auctionSysProxyAddr, boolPackSlot, bytes32(slotVal));
     }
 
@@ -4322,14 +4343,33 @@ contract NFTAuctionV1Test is Test {
         vm.stopPrank();
     }
 
-    function _getExpectAllowedTokens(uint256 len) internal view returns (NFTAuctionV1.TokenInitConfig[] memory allowedTokensList) {
-        allowedTokensList = new NFTAuctionV1.TokenInitConfig[](len);        
-        allowedTokensList[0] = NFTAuctionV1.TokenInitConfig({token: 0, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(0), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(0)});
-        allowedTokensList[1] = NFTAuctionV1.TokenInitConfig({token: 1, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(1), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(1)});
-        allowedTokensList[2] = NFTAuctionV1.TokenInitConfig({token: 2, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(2), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(2)});
+    function _getExpectAllowedTokens(uint256 len)
+        internal
+        view
+        returns (NFTAuctionV1.TokenInitConfig[] memory allowedTokensList)
+    {
+        allowedTokensList = new NFTAuctionV1.TokenInitConfig[](len);
+        allowedTokensList[0] = NFTAuctionV1.TokenInitConfig({
+            token: 0,
+            tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(0),
+            feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(0)
+        });
+        allowedTokensList[1] = NFTAuctionV1.TokenInitConfig({
+            token: 1,
+            tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(1),
+            feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(1)
+        });
+        allowedTokensList[2] = NFTAuctionV1.TokenInitConfig({
+            token: 2,
+            tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(2),
+            feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(2)
+        });
     }
 
-    function _checkTokenInitConfig(NFTAuctionV1.TokenInitConfig memory left, NFTAuctionV1.TokenInitConfig memory right) internal pure {
+    function _checkTokenInitConfig(NFTAuctionV1.TokenInitConfig memory left, NFTAuctionV1.TokenInitConfig memory right)
+        internal
+        pure
+    {
         assertEq(left.token, right.token);
         assertEq(left.tokenAddr, right.tokenAddr);
         assertEq(left.feedAddr, right.feedAddr);
