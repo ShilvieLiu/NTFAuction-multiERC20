@@ -923,19 +923,6 @@ contract NFTAuctionV1Test is Test {
 
     // #endregion delTokenCfg 测试结束============================================================
 
-    function _getExpectAllowedTokens(uint256 len) internal view returns (NFTAuctionV1.TokenInitConfig[] memory allowedTokensList) {
-        allowedTokensList = new NFTAuctionV1.TokenInitConfig[](len);        
-        allowedTokensList[0] = NFTAuctionV1.TokenInitConfig({token: 0, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(0), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(0)});
-        allowedTokensList[1] = NFTAuctionV1.TokenInitConfig({token: 1, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(1), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(1)});
-        allowedTokensList[2] = NFTAuctionV1.TokenInitConfig({token: 2, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(2), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(2)});
-    }
-
-    function _checkTokenInitConfig(NFTAuctionV1.TokenInitConfig memory left, NFTAuctionV1.TokenInitConfig memory right) internal pure {
-        assertEq(left.token, right.token);
-        assertEq(left.tokenAddr, right.tokenAddr);
-        assertEq(left.feedAddr, right.feedAddr);
-    }
-
     // #region 创建拍卖 测试开始============================================================
     // createAuction 测试成功场景1：allowedTokens ETH和代币全有 & NFT第一次创建拍卖
     function test_createAuction_Success1() public {
@@ -4333,6 +4320,19 @@ contract NFTAuctionV1Test is Test {
             NFTAuctionV1(auctionSysProxyAddr).bidAuction(auctionId, bidToken, bidTokenAmount);
         }
         vm.stopPrank();
+    }
+
+    function _getExpectAllowedTokens(uint256 len) internal view returns (NFTAuctionV1.TokenInitConfig[] memory allowedTokensList) {
+        allowedTokensList = new NFTAuctionV1.TokenInitConfig[](len);        
+        allowedTokensList[0] = NFTAuctionV1.TokenInitConfig({token: 0, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(0), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(0)});
+        allowedTokensList[1] = NFTAuctionV1.TokenInitConfig({token: 1, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(1), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(1)});
+        allowedTokensList[2] = NFTAuctionV1.TokenInitConfig({token: 2, tokenAddr: NFTAuctionV1(auctionSysProxyAddr).getTokenAddr(2), feedAddr: NFTAuctionV1(auctionSysProxyAddr).getFeedAddr(2)});
+    }
+
+    function _checkTokenInitConfig(NFTAuctionV1.TokenInitConfig memory left, NFTAuctionV1.TokenInitConfig memory right) internal pure {
+        assertEq(left.token, right.token);
+        assertEq(left.tokenAddr, right.tokenAddr);
+        assertEq(left.feedAddr, right.feedAddr);
     }
 
     // // #endregion 测试业务的公共函数================================================
