@@ -20,15 +20,12 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
-#         submodules: recursive # ← 自动下载 lib/ 依赖
+          submodules: recursive # ← 自动下载 lib/ 依赖
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: "1.7.1"
-      
-      - name: Install forge dependencies
-        run: git submodule update --init --recursive
 
       - name: Install npm dependencies
         run: npm install
